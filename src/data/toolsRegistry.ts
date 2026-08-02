@@ -673,6 +673,17 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     featured: true,
     componentName: 'ExpenseTracker'
   },
+  {
+    id: 'glass-canvas',
+    title: 'Glass Canvas Whiteboard',
+    description: 'Draw, sketch, add shapes, sticky notes, and map minds on a premium VisionOS transparent canvas.',
+    category: 'productivity',
+    icon: 'Brush',
+    keywords: ['whiteboard', 'canvas', 'draw', 'sketch', 'mindmap', 'shapes', 'notes'],
+    popular: true,
+    featured: true,
+    componentName: 'GlassCanvas'
+  },
 
   // SYSTEM & NETWORK
   {

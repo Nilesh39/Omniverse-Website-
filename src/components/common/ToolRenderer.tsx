@@ -93,7 +93,8 @@ import {
 import {
   HabitTrackerTool,
   QuickNotesTool,
-  ExpenseTrackerTool
+  ExpenseTrackerTool,
+  GlassCanvasTool
 } from '../../tools/ProductivityTools';
 
 import {
@@ -192,6 +193,7 @@ export const ToolRenderer: React.FC<ToolRendererProps> = ({ componentName }) => 
     case 'HabitTracker': return <HabitTrackerTool />;
     case 'QuickNotes': return <QuickNotesTool />;
     case 'ExpenseTracker': return <ExpenseTrackerTool />;
+    case 'GlassCanvas': return <GlassCanvasTool />;
 
     // System
     case 'BatteryInfo': return <BatteryInfoTool />;
