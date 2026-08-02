@@ -226,6 +226,16 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     popular: true,
     componentName: 'GraphingCalculator'
   },
+  {
+    id: 'gravity-simulator',
+    title: '3D Solar Gravity & Orbit Simulator',
+    description: 'Simulate Kepler orbits, launch planets dynamically, and study gravitational attraction physics.',
+    category: 'student',
+    icon: 'Globe',
+    keywords: ['gravity', 'orbit', 'solar', 'space', 'physics', 'kepler', 'simulator'],
+    popular: true,
+    componentName: 'GravitySimulator'
+  },
 
   // FINANCE & BUSINESS
   {
@@ -421,6 +431,16 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     icon: 'Eraser',
     keywords: ['clean', 'text', 'duplicate', 'trim', 'lines', 'spaces'],
     componentName: 'TextCleaner'
+  },
+  {
+    id: 'devtyping-speedracer',
+    title: 'DevTyping Speed Racer & Accuracy Tester',
+    description: 'Test your programming typing speed and accuracy across multiple languages (JS, Python, HTML).',
+    category: 'text',
+    icon: 'Keyboard',
+    keywords: ['typing', 'speed', 'wpm', 'developer', 'accuracy', 'syntax', 'code'],
+    popular: true,
+    componentName: 'DevTypingSpeedRacer'
   },
 
   // COLOR & DESIGN

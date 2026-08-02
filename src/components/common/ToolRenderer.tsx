@@ -24,7 +24,8 @@ import {
   FractionCalculatorTool,
   StatsCalculatorTool,
   PrimeFactorizerTool,
-  GraphingCalculatorTool
+  GraphingCalculatorTool,
+  GravitySimulatorTool
 } from '../../tools/MathStudentTools';
 
 import {
@@ -52,7 +53,8 @@ import {
   MarkdownPreviewerTool,
   LoremIpsumGeneratorTool,
   SpeechTimeEstimatorTool,
-  TextCleanerTool
+  TextCleanerTool,
+  DevTypingSpeedRacerTool
 } from '../../tools/TextTools';
 
 import {
@@ -137,6 +139,7 @@ export const ToolRenderer: React.FC<ToolRendererProps> = ({ componentName }) => 
     case 'StatsCalculator': return <StatsCalculatorTool />;
     case 'PrimeFactorizer': return <PrimeFactorizerTool />;
     case 'GraphingCalculator': return <GraphingCalculatorTool />;
+    case 'GravitySimulator': return <GravitySimulatorTool />;
 
     // Finance
     case 'GstCalculator': return <GstCalculatorTool />;
@@ -162,6 +165,7 @@ export const ToolRenderer: React.FC<ToolRendererProps> = ({ componentName }) => 
     case 'LoremIpsumGenerator': return <LoremIpsumGeneratorTool />;
     case 'SpeechTimeEstimator': return <SpeechTimeEstimatorTool />;
     case 'TextCleaner': return <TextCleanerTool />;
+    case 'DevTypingSpeedRacer': return <DevTypingSpeedRacerTool />;
 
     // Color & Security
     case 'GradientGenerator': return <GradientGeneratorTool />;

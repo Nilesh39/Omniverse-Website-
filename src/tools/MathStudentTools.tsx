@@ -914,3 +914,367 @@ export const GraphingCalculatorTool: React.FC = () => {
     </div>
   );
 };
+
+// 11. 3D Solar Gravity & Orbit Simulator
+interface Planet {
+  id: string;
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  mass: number;
+  color: string;
+  trail: { x: number; y: number }[];
+  isDestroyed?: boolean;
+}
+
+export const GravitySimulatorTool: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const requestRef = useRef<number | null>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+
+  // Simulation Parameters
+  const [gConstant, setGConstant] = useState(1.5);
+  const [starMass, setStarMass] = useState(5000);
+  const [planets, setPlanets] = useState<Planet[]>([]);
+
+  // Interactive mouse dragging variables
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
+
+  // Colors list
+  const planetColors = ['#06b6d4', '#f43f5e', '#10b981', '#a855f7', '#fb923c', '#facc15'];
+
+  // Initialize circular orbits preset
+  const loadCircularPreset = () => {
+    const center = { x: 300, y: 200 };
+    const p1: Planet = {
+      id: '1',
+      x: center.x,
+      y: center.y - 120,
+      vx: 7.8, // Circular velocity: v = sqrt(G*M/r) -> sqrt(1.5 * 5000 / 120) = sqrt(62.5) ~ 7.9
+      vy: 0,
+      mass: 10,
+      color: '#06b6d4',
+      trail: []
+    };
+
+    const p2: Planet = {
+      id: '2',
+      x: center.x,
+      y: center.y + 160,
+      vx: -6.8, // sqrt(1.5 * 5000 / 160) = sqrt(46.8) ~ 6.8
+      vy: 0,
+      mass: 5,
+      color: '#f43f5e',
+      trail: []
+    };
+
+    setPlanets([p1, p2]);
+  };
+
+  useEffect(() => {
+    loadCircularPreset();
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, []);
+
+  // Physics Loop logic
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const center = { x: width / 2, y: height / 2 };
+
+    const updatePhysics = () => {
+      if (!isPlaying) return;
+
+      setPlanets((prevPlanets) =>
+        prevPlanets.map((p) => {
+          if (p.isDestroyed) return p;
+
+          // Gravitational pull to center star
+          const dx = center.x - p.x;
+          const dy = center.y - p.y;
+          const distSq = dx * dx + dy * dy;
+          const dist = Math.sqrt(distSq);
+
+          // Star Collision check
+          if (dist < 16) {
+            return { ...p, isDestroyed: true };
+          }
+
+          // Acceleration force formula (F = G * M_star * m_planet / r^2)
+          // a = G * M_star / r^2
+          const accel = (gConstant * starMass) / Math.max(distSq, 400);
+          const ax = accel * (dx / Math.max(dist, 1));
+          const ay = accel * (dy / Math.max(dist, 1));
+
+          const newVx = p.vx + ax * 0.1;
+          const newVy = p.vy + ay * 0.1;
+          const newX = p.x + newVx * 0.1;
+          const newY = p.y + newVy * 0.1;
+
+          // Add trail
+          const updatedTrail = [...p.trail, { x: p.x, y: p.y }].slice(-60);
+
+          return {
+            ...p,
+            x: newX,
+            y: newY,
+            vx: newVx,
+            vy: newVy,
+            trail: updatedTrail
+          };
+        })
+      );
+    };
+
+    const draw = () => {
+      // Clear Screen with trailing transparent blur for visual aesthetics
+      ctx.fillStyle = 'rgba(9, 13, 22, 0.25)';
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw Grid helper lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < width; i += 40) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, height);
+        ctx.stroke();
+      }
+      for (let j = 0; j < height; j += 40) {
+        ctx.beginPath();
+        ctx.moveTo(0, j);
+        ctx.lineTo(width, j);
+        ctx.stroke();
+      }
+
+      // Draw Sun Glow Gradient
+      const radialGlow = ctx.createRadialGradient(center.x, center.y, 4, center.x, center.y, 48);
+      radialGlow.addColorStop(0, '#facc15');
+      radialGlow.addColorStop(0.3, 'rgba(251, 146, 60, 0.6)');
+      radialGlow.addColorStop(1, 'rgba(251, 146, 60, 0)');
+      ctx.fillStyle = radialGlow;
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, 48, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Draw Solid Center Sun
+      ctx.fillStyle = '#f97316';
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, 14, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#fef08a';
+      ctx.stroke();
+
+      // Draw active planets and orbits trails
+      planets.forEach((p) => {
+        if (p.isDestroyed) return;
+
+        // Draw trail path line
+        if (p.trail.length > 1) {
+          ctx.strokeStyle = p.color;
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(p.trail[0].x, p.trail[0].y);
+          for (let k = 1; k < p.trail.length; k++) {
+            ctx.lineTo(p.trail[k].x, p.trail[k].y);
+          }
+          ctx.globalAlpha = 0.4;
+          ctx.stroke();
+          ctx.globalAlpha = 1.0;
+        }
+
+        // Draw Planet Sphere
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6 + Math.log10(p.mass) * 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        // High glow around planet
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+
+      // Draw Drag Vector arrow if launching new planet
+      if (dragStart && dragCurrent) {
+        ctx.strokeStyle = '#f43f5e';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(dragStart.x, dragStart.y);
+        ctx.lineTo(dragCurrent.x, dragCurrent.y);
+        ctx.stroke();
+
+        // Pull vector arrow target preview circle
+        ctx.fillStyle = '#f43f5e';
+        ctx.beginPath();
+        ctx.arc(dragStart.x, dragStart.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+
+    const loop = () => {
+      updatePhysics();
+      draw();
+      requestRef.current = requestAnimationFrame(loop);
+    };
+
+    loop();
+
+    return () => {
+      if (requestRef.current) cancelAnimationFrame(requestRef.current);
+    };
+  }, [planets, isPlaying, gConstant, starMass, dragStart, dragCurrent]);
+
+  // Handle Drag to Launch Vector
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setDragStart({ x, y });
+    setDragCurrent({ x, y });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!dragStart) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    setDragCurrent({ x, y });
+  };
+
+  const handleMouseUp = () => {
+    if (!dragStart || !dragCurrent) return;
+
+    // Launch speed velocity is directly proportional to drag distance vector
+    const dx = dragStart.x - dragCurrent.x;
+    const dy = dragStart.y - dragCurrent.y;
+    
+    // Scale velocity down for user-friendliness
+    const vx = dx * 0.15;
+    const vy = dy * 0.15;
+
+    const newPlanet: Planet = {
+      id: Math.random().toString(),
+      x: dragStart.x,
+      y: dragStart.y,
+      vx,
+      vy,
+      mass: 12,
+      color: planetColors[planets.length % planetColors.length],
+      trail: []
+    };
+
+    setPlanets([...planets, newPlanet]);
+    setDragStart(null);
+    setDragCurrent(null);
+  };
+
+  const clearPlanets = () => {
+    setPlanets([]);
+  };
+
+  const loadEllipticalPreset = () => {
+    const center = { x: 300, y: 200 };
+    const p1: Planet = {
+      id: 'ell-1',
+      x: center.x,
+      y: center.y - 140,
+      vx: 4.8, // Hyper elliptical
+      vy: 0,
+      mass: 8,
+      color: '#a855f7',
+      trail: []
+    };
+    setPlanets([p1]);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Simulation variables slider panel */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-4 glass-panel rounded-2xl border border-white/10 space-y-1">
+          <div className="flex justify-between text-xs font-semibold text-slate-400">
+            <span>Gravitational Constant (G)</span>
+            <span className="text-accent">{gConstant.toFixed(2)}</span>
+          </div>
+          <input
+            type="range"
+            min="0.1"
+            max="5"
+            step="0.1"
+            value={gConstant}
+            onChange={(e) => setGConstant(Number(e.target.value))}
+            className="w-full accent-accent bg-black/40 h-1 rounded-lg"
+          />
+        </div>
+
+        <div className="p-4 glass-panel rounded-2xl border border-white/10 space-y-1">
+          <div className="flex justify-between text-xs font-semibold text-slate-400">
+            <span>Sun Core Mass</span>
+            <span className="text-accent">{starMass} units</span>
+          </div>
+          <input
+            type="range"
+            min="1000"
+            max="15000"
+            step="500"
+            value={starMass}
+            onChange={(e) => setStarMass(Number(e.target.value))}
+            className="w-full accent-accent bg-black/40 h-1 rounded-lg"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsPlaying(!isPlaying)}
+            className={`flex-1 py-3 text-xs font-bold rounded-2xl transition-all ${isPlaying ? 'bg-accent text-slate-950' : 'glass-panel border border-white/10 text-slate-200'}`}
+          >
+            {isPlaying ? '⏸ Pause Sim' : '▶ Resume Sim'}
+          </button>
+          <button onClick={clearPlanets} className="px-4 py-3 rounded-2xl bg-rose-500/20 border border-rose-500/30 text-rose-300 font-bold text-xs hover:bg-rose-500/30">
+            Clear Planets
+          </button>
+        </div>
+      </div>
+
+      {/* Orbit Canvas with drag-and-launch triggers */}
+      <div className="relative rounded-3xl overflow-hidden border border-white/10">
+        <canvas
+          ref={canvasRef}
+          width={600}
+          height={400}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          className="w-full h-[400px] cursor-crosshair block bg-[#090d16]"
+        />
+
+        {/* Orbit simulation launcher banner info */}
+        <div className="absolute top-4 left-4 p-3 rounded-2xl bg-black/75 backdrop-blur-md border border-white/10 text-[10px] text-slate-400 space-y-1">
+          <span className="font-bold text-slate-200 block uppercase tracking-wider">🚀 Click & Drag To Launch</span>
+          <p>Click anywhere, drag backward to pull velocity arrow, then release to launch a planet!</p>
+        </div>
+
+        {/* Orbital template preset buttons */}
+        <div className="absolute bottom-4 left-4 flex gap-1.5 p-1.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/10">
+          <button onClick={loadCircularPreset} className="px-2 py-1 text-[9px] font-black rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-accent">Circular orbits</button>
+          <button onClick={loadEllipticalPreset} className="px-2 py-1 text-[9px] font-black rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-accent">Elliptical path</button>
+        </div>
+      </div>
+    </div>
+  );
+};
