@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CheckSquare, Wallet, Notebook, Plus, Trash2, CheckCircle2, Flame, Save, Brush, Eraser, Square, Circle, Type, RotateCcw, RotateCw, StickyNote, Download, Trash } from 'lucide-react';
+import { CheckSquare, Wallet, Notebook, Plus, Trash2, CheckCircle2, Flame, Save, Brush, Eraser, Square, Circle, Type, RotateCcw, RotateCw, StickyNote, Download, Trash, Minimize2 } from 'lucide-react';
 import { db } from '../lib/db';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { formatCurrency } from '../lib/utils';
