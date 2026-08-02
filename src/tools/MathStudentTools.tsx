@@ -643,3 +643,274 @@ export const PrimeFactorizerTool: React.FC = () => {
     </div>
   );
 };
+
+// 10. 2D Graphing Calculator
+export const GraphingCalculatorTool: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [eq1, setEq1] = useState('x * sin(x)');
+  const [eq2, setEq2] = useState('x^2 - 4');
+  const [showEq2, setShowEq2] = useState(false);
+
+  const [xRange, setXRange] = useState({ min: -10, max: 10 });
+  const [yRange, setYRange] = useState({ min: -10, max: 10 });
+
+  const [hoverCoords, setHoverCoords] = useState<{ x: number; y: number } | null>(null);
+
+  const safeEval = (expr: string, x: number): number => {
+    try {
+      let formatted = expr.toLowerCase()
+        .replace(/\^/g, '**')
+        .replace(/sin\(/g, 'Math.sin(')
+        .replace(/cos\(/g, 'Math.cos(')
+        .replace(/tan\(/g, 'Math.tan(')
+        .replace(/sqrt\(/g, 'Math.sqrt(')
+        .replace(/pi/g, 'Math.PI')
+        .replace(/abs\(/g, 'Math.abs(');
+      
+      const fn = new Function('x', `return ${formatted};`);
+      const val = fn(x);
+      return typeof val === 'number' && !isNaN(val) && isFinite(val) ? val : NaN;
+    } catch {
+      return NaN;
+    }
+  };
+
+  const drawGraph = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Clear Canvas
+    ctx.clearRect(0, 0, width, height);
+
+    // Fill Background
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(0, 0, width, height);
+
+    // Helpers to map coordinates to pixel offsets
+    const toPixelX = (x: number) => ((x - xRange.min) / (xRange.max - xRange.min)) * width;
+    const toPixelY = (y: number) => height - ((y - yRange.min) / (yRange.max - yRange.min)) * height;
+    const toCoordX = (px: number) => xRange.min + (px / width) * (xRange.max - xRange.min);
+    const toCoordY = (py: number) => yRange.min + ((height - py) / height) * (yRange.max - yRange.min);
+
+    // Draw Grid Lines
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.font = '10px monospace';
+
+    // Vertical grids & X Labels
+    const xStep = Math.max(1, Math.round((xRange.max - xRange.min) / 10));
+    const startX = Math.floor(xRange.min / xStep) * xStep;
+    for (let x = startX; x <= xRange.max; x += xStep) {
+      const px = toPixelX(x);
+      ctx.beginPath();
+      ctx.moveTo(px, 0);
+      ctx.lineTo(px, height);
+      ctx.stroke();
+      
+      // Label
+      if (x !== 0) {
+        ctx.fillText(x.toString(), px - 8, toPixelY(0) + 12);
+      }
+    }
+
+    // Horizontal grids & Y Labels
+    const yStep = Math.max(1, Math.round((yRange.max - yRange.min) / 10));
+    const startY = Math.floor(yRange.min / yStep) * yStep;
+    for (let y = startY; y <= yRange.max; y += yStep) {
+      const py = toPixelY(y);
+      ctx.beginPath();
+      ctx.moveTo(0, py);
+      ctx.lineTo(width, py);
+      ctx.stroke();
+
+      // Label
+      if (y !== 0) {
+        ctx.fillText(y.toString(), toPixelX(0) + 5, py + 4);
+      }
+    }
+
+    // Draw Main Axes
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 2;
+
+    // Y Axis (X = 0)
+    ctx.beginPath();
+    ctx.moveTo(toPixelX(0), 0);
+    ctx.lineTo(toPixelX(0), height);
+    ctx.stroke();
+
+    // X Axis (Y = 0)
+    ctx.beginPath();
+    ctx.moveTo(0, toPixelY(0));
+    ctx.lineTo(width, toPixelY(0));
+    ctx.stroke();
+
+    // Plot Equation 1 (Cyan)
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    let first = true;
+    for (let px = 0; px < width; px++) {
+      const x = toCoordX(px);
+      const y = safeEval(eq1, x);
+      if (!isNaN(y)) {
+        const py = toPixelY(y);
+        if (first) {
+          ctx.moveTo(px, py);
+          first = false;
+        } else {
+          ctx.lineTo(px, py);
+        }
+      } else {
+        first = true;
+      }
+    }
+    ctx.stroke();
+
+    // Plot Equation 2 (Ruby Red)
+    if (showEq2) {
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      first = true;
+      for (let px = 0; px < width; px++) {
+        const x = toCoordX(px);
+        const y = safeEval(eq2, x);
+        if (!isNaN(y)) {
+          const py = toPixelY(y);
+          if (first) {
+            ctx.moveTo(px, py);
+            first = false;
+          } else {
+            ctx.lineTo(px, py);
+          }
+        } else {
+          first = true;
+        }
+      }
+      ctx.stroke();
+    }
+  };
+
+  useEffect(() => {
+    drawGraph();
+  }, [eq1, eq2, showEq2, xRange, yRange]);
+
+  // Zoom helpers
+  const handleZoom = (factor: number) => {
+    const xCenter = (xRange.min + xRange.max) / 2;
+    const yCenter = (yRange.min + yRange.max) / 2;
+
+    const xHalfDist = ((xRange.max - xRange.min) / 2) * factor;
+    const yHalfDist = ((yRange.max - yRange.min) / 2) * factor;
+
+    setXRange({ min: xCenter - xHalfDist, max: xCenter + xHalfDist });
+    setYRange({ min: yCenter - yHalfDist, max: yCenter + yHalfDist });
+  };
+
+  // Pan helper
+  const handlePan = (dx: number, dy: number) => {
+    const xDist = xRange.max - xRange.min;
+    const yDist = yRange.max - yRange.min;
+
+    setXRange({ min: xRange.min + dx * xDist, max: xRange.max + dx * xDist });
+    setYRange({ min: yRange.min + dy * yDist, max: yRange.max + dy * yDist });
+  };
+
+  const handleReset = () => {
+    setXRange({ min: -10, max: 10 });
+    setYRange({ min: -10, max: 10 });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      const x = xRange.min + (px / canvas.width) * (xRange.max - xRange.min);
+      const y = yRange.min + ((canvas.height - py) / canvas.height) * (yRange.max - yRange.min);
+      setHoverCoords({ x, y });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Inputs */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-semibold text-slate-400 block">Function 1 (y1)</label>
+            <span className="text-[10px] text-cyan-400 font-bold">Cyan Line</span>
+          </div>
+          <input
+            type="text"
+            value={eq1}
+            onChange={(e) => setEq1(e.target.value)}
+            className="w-full bg-black/40 rounded-xl px-4 py-2.5 font-mono text-xs text-slate-100 border border-white/10 focus:outline-none focus:border-accent"
+            placeholder="e.g. sin(x) * x"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={showEq2}
+                onChange={(e) => setShowEq2(e.target.checked)}
+                className="rounded border-white/10 text-accent bg-black/40 focus:ring-0"
+              />
+              <label className="text-xs font-semibold text-slate-400">Function 2 (y2)</label>
+            </div>
+            <span className="text-[10px] text-rose-400 font-bold">Ruby Line</span>
+          </div>
+          <input
+            type="text"
+            value={eq2}
+            disabled={!showEq2}
+            onChange={(e) => setEq2(e.target.value)}
+            className="w-full bg-black/40 rounded-xl px-4 py-2.5 font-mono text-xs text-slate-100 border border-white/10 focus:outline-none focus:border-accent disabled:opacity-40"
+            placeholder="e.g. cos(x)"
+          />
+        </div>
+      </div>
+
+      {/* Grid Canvas */}
+      <div className="relative rounded-3xl overflow-hidden border border-white/10">
+        <canvas
+          ref={canvasRef}
+          width={600}
+          height={400}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setHoverCoords(null)}
+          className="w-full h-[400px] cursor-crosshair block"
+        />
+
+        {/* Hover coordinate overlays */}
+        {hoverCoords && (
+          <div className="absolute top-3 left-3 px-3 py-1.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/10 font-mono text-[10px] text-accent">
+            X: {hoverCoords.x.toFixed(3)} | Y: {hoverCoords.y.toFixed(3)}
+          </div>
+        )}
+
+        {/* Floating Pan/Zoom VisionOS Controls Overlay */}
+        <div className="absolute bottom-4 right-4 flex items-center gap-2 p-2 rounded-2xl bg-black/75 backdrop-blur-md border border-white/15 shadow-2xl">
+          <button onClick={() => handleZoom(0.8)} className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-accent hover:border-accent">Zoom In</button>
+          <button onClick={() => handleZoom(1.2)} className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-white/5 border border-white/10 text-slate-300 hover:text-accent hover:border-accent">Zoom Out</button>
+          <button onClick={() => handlePan(-0.1, 0)} className="px-2 py-1 text-[10px] rounded-lg bg-white/5 text-slate-300 border border-white/15 font-bold">⬅</button>
+          <button onClick={() => handlePan(0.1, 0)} className="px-2 py-1 text-[10px] rounded-lg bg-white/5 text-slate-300 border border-white/15 font-bold">➡</button>
+          <button onClick={() => handlePan(0, 0.1)} className="px-2 py-1 text-[10px] rounded-lg bg-white/5 text-slate-300 border border-white/15 font-bold">⬆</button>
+          <button onClick={() => handlePan(0, -0.1)} className="px-2 py-1 text-[10px] rounded-lg bg-white/5 text-slate-300 border border-white/15 font-bold">⬇</button>
+          <button onClick={handleReset} className="px-2.5 py-1 text-[10px] font-black rounded-lg bg-accent text-slate-950">Reset</button>
+        </div>
+      </div>
+    </div>
+  );
+};

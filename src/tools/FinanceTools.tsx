@@ -300,3 +300,293 @@ export const CurrencyConverterTool: React.FC = () => {
     </div>
   );
 };
+
+// 9. Split Bills & Expenses Calculator
+interface BillItem {
+  id: string;
+  name: string;
+  amount: number;
+  assignedTo: string[]; // List of person names
+}
+
+export const SplitBillsTool: React.FC = () => {
+  const [totalBill, setTotalBill] = useState(120);
+  const [tipPct, setTipPct] = useState(15);
+  const [numPeople, setNumPeople] = useState(4);
+  const [peopleNames, setPeopleNames] = useState<string[]>(['Person 1', 'Person 2', 'Person 3', 'Person 4']);
+
+  // Itemized split states
+  const [isItemized, setIsItemized] = useState(false);
+  const [items, setItems] = useState<BillItem[]>([]);
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemAmount, setNewItemAmount] = useState(10);
+  const [newItemAssigned, setNewItemAssigned] = useState<string[]>([]);
+
+  // Adjust people count & sync names list
+  const handlePeopleChange = (val: number) => {
+    const count = Math.max(1, Math.min(50, val));
+    setNumPeople(count);
+    
+    // Sync names array
+    const updated = [...peopleNames];
+    if (count > updated.length) {
+      for (let i = updated.length; i < count; i++) {
+        updated.push(`Person ${i + 1}`);
+      }
+    } else {
+      updated.splice(count);
+    }
+    setPeopleNames(updated);
+  };
+
+  const handleNameChange = (idx: number, name: string) => {
+    const updated = [...peopleNames];
+    updated[idx] = name || `Person ${idx + 1}`;
+    setPeopleNames(updated);
+  };
+
+  // Itemized actions
+  const addItem = () => {
+    if (!newItemName.trim() || newItemAmount <= 0 || newItemAssigned.length === 0) return;
+    const newItem: BillItem = {
+      id: Math.random().toString(),
+      name: newItemName.trim(),
+      amount: newItemAmount,
+      assignedTo: [...newItemAssigned]
+    };
+    setItems([...items, newItem]);
+    setNewItemName('');
+    setNewItemAmount(10);
+    setNewItemAssigned([]);
+  };
+
+  const deleteItem = (id: string) => {
+    setItems(items.filter(it => it.id !== id));
+  };
+
+  // Calculations
+  const tipAmount = isItemized 
+    ? (items.reduce((acc, it) => acc + it.amount, 0) * tipPct) / 100
+    : (totalBill * tipPct) / 100;
+  
+  const subtotal = isItemized 
+    ? items.reduce((acc, it) => acc + it.amount, 0)
+    : totalBill;
+
+  const grandTotal = subtotal + tipAmount;
+
+  // Simple Split (Equal Share)
+  const equalShare = grandTotal / Math.max(1, numPeople);
+
+  // Itemized splits map
+  const itemizedBalances: Record<string, number> = {};
+  peopleNames.forEach(n => { itemizedBalances[n] = 0; });
+
+  if (isItemized && items.length > 0) {
+    items.forEach(item => {
+      const share = item.amount / item.assignedTo.length;
+      item.assignedTo.forEach(person => {
+        if (itemizedBalances[person] !== undefined) {
+          itemizedBalances[person] += share;
+        }
+      });
+    });
+
+    // Add tip distributed proportionally to everyone's share
+    const totalItemSubtotal = items.reduce((acc, it) => acc + it.amount, 0);
+    if (totalItemSubtotal > 0) {
+      peopleNames.forEach(person => {
+        const proportion = itemizedBalances[person] / totalItemSubtotal;
+        itemizedBalances[person] += tipAmount * proportion;
+      });
+    }
+  }
+
+  const toggleAssignee = (name: string) => {
+    if (newItemAssigned.includes(name)) {
+      setNewItemAssigned(newItemAssigned.filter(n => n !== name));
+    } else {
+      setNewItemAssigned([...newItemAssigned, name]);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Mode selectors */}
+      <div className="flex rounded-2xl bg-black/40 p-1 border border-white/10">
+        <button onClick={() => setIsItemized(false)} className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${!isItemized ? 'bg-accent text-slate-950 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}>Simple Equal Split</button>
+        <button onClick={() => setIsItemized(true)} className={`flex-1 py-1.5 text-xs font-bold rounded-xl transition-all ${isItemized ? 'bg-accent text-slate-950 shadow-md' : 'text-slate-400 hover:text-slate-200'}`}>Itemized Custom Split</button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left column inputs */}
+        <div className="space-y-4 md:col-span-1">
+          {!isItemized && (
+            <div>
+              <label className="text-xs font-semibold text-slate-400 mb-1 block">Bill Subtotal ($)</label>
+              <input
+                type="number"
+                value={totalBill}
+                onChange={(e) => setTotalBill(Number(e.target.value))}
+                className="w-full bg-black/40 rounded-xl px-4 py-2 font-mono text-xs text-slate-100 border border-white/10"
+              />
+            </div>
+          )}
+
+          <div>
+            <label className="text-xs font-semibold text-slate-400 mb-1.5 block">Tip Percentage ({tipPct}%)</label>
+            <div className="grid grid-cols-5 gap-1 mb-2">
+              {[0, 10, 15, 18, 20].map(pct => (
+                <button
+                  key={pct}
+                  onClick={() => setTipPct(pct)}
+                  className={`py-1 text-[10px] font-bold rounded-lg border transition-all ${tipPct === pct ? 'bg-accent text-slate-950 border-accent' : 'glass-panel border-white/10 text-slate-300'}`}
+                >
+                  {pct}%
+                </button>
+              ))}
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="50"
+              value={tipPct}
+              onChange={(e) => setTipPct(Number(e.target.value))}
+              className="w-full h-1 bg-black/40 rounded-full appearance-none cursor-pointer accent-accent"
+            />
+          </div>
+
+          <div>
+            <div className="flex justify-between items-center mb-1">
+              <label className="text-xs font-semibold text-slate-400">Number of People ({numPeople})</label>
+              <div className="flex items-center gap-1">
+                <button onClick={() => handlePeopleChange(numPeople - 1)} className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300 text-xs font-bold">-</button>
+                <button onClick={() => handlePeopleChange(numPeople + 1)} className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300 text-xs font-bold">+</button>
+              </div>
+            </div>
+          </div>
+
+          {/* Edit Names */}
+          <div className="p-3.5 glass-panel rounded-2xl border border-white/10 space-y-2 max-h-48 overflow-y-auto">
+            <span className="text-[10px] font-bold uppercase text-slate-400">People Names</span>
+            <div className="space-y-1.5">
+              {peopleNames.map((name, idx) => (
+                <input
+                  key={idx}
+                  type="text"
+                  value={name}
+                  onChange={(e) => handleNameChange(idx, e.target.value)}
+                  className="w-full bg-black/20 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-slate-200 border border-white/5"
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Center column (Itemized Builder) */}
+        <div className="md:col-span-2 space-y-4">
+          {isItemized ? (
+            <div className="space-y-4">
+              {/* Add item form */}
+              <div className="p-4 glass-panel rounded-2xl border border-white/10 space-y-3">
+                <span className="text-xs font-bold text-slate-300 block">Add Itemized Expense</span>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={newItemName}
+                    onChange={(e) => setNewItemName(e.target.value)}
+                    placeholder="Item (e.g. Pizza, Drink)"
+                    className="bg-black/20 rounded-xl px-3 py-2 text-xs text-slate-100 border border-white/5"
+                  />
+                  <input
+                    type="number"
+                    value={newItemAmount}
+                    onChange={(e) => setNewItemAmount(Number(e.target.value))}
+                    placeholder="Amount ($)"
+                    className="bg-black/20 rounded-xl px-3 py-2 text-xs font-mono text-slate-100 border border-white/5"
+                  />
+                  <button onClick={addItem} className="px-4 py-2 rounded-xl bg-accent text-slate-950 font-bold text-xs">
+                    + Add Item
+                  </button>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-bold text-slate-400 block">Who shared this item?</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {peopleNames.map(name => (
+                      <button
+                        key={name}
+                        onClick={() => toggleAssignee(name)}
+                        className={`px-2.5 py-1 rounded-lg text-[10px] font-semibold transition-all ${newItemAssigned.includes(name) ? 'bg-accent/20 border border-accent text-accent' : 'bg-white/5 border border-white/10 text-slate-300'}`}
+                      >
+                        {name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Items List */}
+              <div className="space-y-2">
+                <span className="text-xs font-semibold text-slate-400 block">Added Items ({items.length})</span>
+                {items.length === 0 ? (
+                  <p className="text-xs text-slate-500 italic py-4 text-center">No itemized splits added yet.</p>
+                ) : (
+                  <div className="space-y-1.5 max-h-56 overflow-y-auto">
+                    {items.map(it => (
+                      <div key={it.id} className="p-3 rounded-xl glass-panel flex items-center justify-between text-xs">
+                        <div>
+                          <h4 className="font-bold text-slate-200">{it.name}</h4>
+                          <p className="text-[9px] text-slate-400 truncate max-w-xs">Shared by: {it.assignedTo.join(', ')}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-mono font-bold text-accent">${it.amount.toFixed(2)}</span>
+                          <button onClick={() => deleteItem(it.id)} className="text-slate-500 hover:text-rose-400">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* Simple Splits Calculations Cards */
+            <div className="p-6 glass-panel rounded-3xl border border-accent/40 bg-accent/5 text-center flex flex-col justify-center space-y-4 h-full">
+              <div>
+                <span className="text-xs font-bold uppercase text-slate-400 tracking-wider">Per Person Equal Share</span>
+                <h1 className="text-5xl font-black text-accent mt-2 font-mono">${equalShare.toFixed(2)}</h1>
+              </div>
+
+              <div className="pt-4 border-t border-white/10 grid grid-cols-3 gap-2 text-center text-xs">
+                <div><span className="text-slate-400 block">Subtotal</span><span className="font-bold text-slate-200">${subtotal.toFixed(2)}</span></div>
+                <div><span className="text-slate-400 block">Tip ({tipPct}%)</span><span className="font-bold text-slate-200">${tipAmount.toFixed(2)}</span></div>
+                <div><span className="text-slate-400 block">Total payable</span><span className="font-bold text-emerald-400">${grandTotal.toFixed(2)}</span></div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Itemized Split Calculations Outputs */}
+      {isItemized && items.length > 0 && (
+        <div className="p-5 glass-panel rounded-3xl border border-white/10 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-300">Detailed Individual Balances (Includes Tip Shares)</span>
+            <span className="text-xs font-mono font-bold text-emerald-400">Grand Total: ${grandTotal.toFixed(2)}</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            {peopleNames.map(person => (
+              <div key={person} className="p-4 rounded-2xl bg-black/40 border border-white/5 text-center">
+                <span className="text-[10px] font-bold text-slate-400 block uppercase truncate">{person}</span>
+                <h3 className="text-xl font-black text-accent mt-1.5 font-mono">${itemizedBalances[person].toFixed(2)}</h3>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

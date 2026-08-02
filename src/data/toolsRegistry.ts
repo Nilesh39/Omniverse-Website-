@@ -216,6 +216,16 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     keywords: ['prime', 'factor', 'gcd', 'lcm', 'math', 'number'],
     componentName: 'PrimeFactorizer'
   },
+  {
+    id: 'graphing-calculator',
+    title: '2D Graphing Calculator',
+    description: 'Plot mathematical equations and functions (e.g. sin(x), x^2) on an interactive 2D grid.',
+    category: 'student',
+    icon: 'LineChart',
+    keywords: ['graph', 'calculator', 'plot', 'functions', 'math', 'algebra'],
+    popular: true,
+    componentName: 'GraphingCalculator'
+  },
 
   // FINANCE & BUSINESS
   {
@@ -298,6 +308,16 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     popular: true,
     featured: true,
     componentName: 'CurrencyConverter'
+  },
+  {
+    id: 'split-bills',
+    title: 'Split Bills & Expenses Calculator',
+    description: 'Split shared bills, divide group expenses, and calculate tips easily.',
+    category: 'finance',
+    icon: 'Users',
+    keywords: ['split', 'bill', 'tip', 'expense', 'divide', 'group', 'shares'],
+    popular: true,
+    componentName: 'SplitBills'
   },
 
   // HEALTH & FITNESS
@@ -684,6 +704,16 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     featured: true,
     componentName: 'GlassCanvas'
   },
+  {
+    id: 'sudoku-game',
+    title: 'Sudoku Game & Auto-Solver',
+    description: 'Play standard Sudoku with multiple difficulty levels or auto-solve any custom board instantly.',
+    category: 'productivity',
+    icon: 'Grid',
+    keywords: ['sudoku', 'game', 'puzzle', 'solve', 'numbers', 'logic'],
+    popular: true,
+    componentName: 'SudokuGame'
+  },
 
   // SYSTEM & NETWORK
   {
@@ -705,5 +735,15 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     keywords: ['network', 'speed', 'ping', 'wifi', 'ip', 'connection'],
     popular: true,
     componentName: 'NetworkInfo'
+  },
+  {
+    id: 'compass',
+    title: 'Precision Orientation Compass',
+    description: 'Real-time navigation compass showing magnetic direction, device tilt, and orientation angles.',
+    category: 'system',
+    icon: 'Compass',
+    keywords: ['compass', 'navigation', 'direction', 'orientation', 'north', 'sensor'],
+    popular: true,
+    componentName: 'Compass'
   }
 ];

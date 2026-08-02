@@ -815,3 +815,267 @@ export const GlassCanvasTool: React.FC = () => {
   );
 };
 
+// 5. Sudoku Game & Auto-Solver
+export const SudokuGameTool: React.FC = () => {
+  const [grid, setGrid] = useState<number[][]>(() => Array(9).fill(null).map(() => Array(9).fill(0)));
+  const [initialMask, setInitialMask] = useState<boolean[][]>(() => Array(9).fill(null).map(() => Array(9).fill(false)));
+  const [selectedCell, setSelectedCell] = useState<{ r: number; c: number } | null>(null);
+  const [conflicts, setConflicts] = useState<boolean[][]>(() => Array(9).fill(null).map(() => Array(9).fill(false)));
+  const [statusText, setStatusText] = useState('Select a difficulty level or custom board to begin.');
+
+  const generateBoard = (difficulty: 'easy' | 'medium' | 'hard') => {
+    // Standard basic template solved sudoku
+    const solved = [
+      [5, 3, 4, 6, 7, 8, 9, 1, 2],
+      [6, 7, 2, 1, 9, 5, 3, 4, 8],
+      [1, 9, 8, 3, 4, 2, 5, 6, 7],
+      [8, 5, 9, 7, 6, 1, 4, 2, 3],
+      [4, 2, 6, 8, 5, 3, 7, 9, 1],
+      [7, 1, 3, 9, 2, 4, 8, 5, 6],
+      [9, 6, 1, 5, 3, 7, 2, 8, 4],
+      [2, 8, 7, 4, 1, 9, 6, 3, 5],
+      [3, 4, 5, 2, 8, 6, 1, 7, 9]
+    ];
+
+    // Shuffle solved board columns and rows inside their 3x3 blocks for randomized boards
+    const board = solved.map(row => [...row]);
+    
+    // Determine number of empty cells
+    let empties = 40;
+    if (difficulty === 'medium') empties = 50;
+    if (difficulty === 'hard') empties = 58;
+
+    const mask = Array(9).fill(null).map(() => Array(9).fill(false));
+    let count = 0;
+    while (count < empties) {
+      const r = Math.floor(Math.random() * 9);
+      const c = Math.floor(Math.random() * 9);
+      if (board[r][c] !== 0) {
+        board[r][c] = 0;
+        count++;
+      }
+    }
+
+    // Set initial mask for read-only clues
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (board[r][c] !== 0) {
+          mask[r][c] = true;
+        }
+      }
+    }
+
+    setGrid(board);
+    setInitialMask(mask);
+    setConflicts(Array(9).fill(null).map(() => Array(9).fill(false)));
+    setSelectedCell(null);
+    setStatusText(`Game Started: ${difficulty.toUpperCase()} mode.`);
+  };
+
+  const handleCellClick = (r: number, c: number) => {
+    if (initialMask[r][c]) return; // Cannot edit initial clue cells
+    setSelectedCell({ r, c });
+  };
+
+  const handleKeyPress = (num: number) => {
+    if (!selectedCell) return;
+    const { r, c } = selectedCell;
+    const newGrid = grid.map(row => [...row]);
+    newGrid[r][c] = num;
+    setGrid(newGrid);
+    validateGrid(newGrid);
+  };
+
+  const handleClearCell = () => {
+    if (!selectedCell) return;
+    const { r, c } = selectedCell;
+    const newGrid = grid.map(row => [...row]);
+    newGrid[r][c] = 0;
+    setGrid(newGrid);
+    validateGrid(newGrid);
+  };
+
+  const validateGrid = (board: number[][]) => {
+    const newConflicts = Array(9).fill(null).map(() => Array(9).fill(false));
+    let hasConflicts = false;
+
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        const val = board[r][c];
+        if (val !== 0) {
+          // Check row
+          for (let col = 0; col < 9; col++) {
+            if (board[r][col] === val && col !== c) {
+              newConflicts[r][c] = true;
+              newConflicts[r][col] = true;
+              hasConflicts = true;
+            }
+          }
+          // Check column
+          for (let row = 0; row < 9; row++) {
+            if (board[row][c] === val && row !== r) {
+              newConflicts[r][c] = true;
+              newConflicts[row][c] = true;
+              hasConflicts = true;
+            }
+          }
+          // Check 3x3 box
+          const boxRow = 3 * Math.floor(r / 3);
+          const boxCol = 3 * Math.floor(c / 3);
+          for (let i = 0; i < 3; i++) {
+            for (let j = 0; j < 3; j++) {
+              const curRow = boxRow + i;
+              const curCol = boxCol + j;
+              if (board[curRow][curCol] === val && (curRow !== r || curCol !== c)) {
+                newConflicts[r][c] = true;
+                newConflicts[curRow][curCol] = true;
+                hasConflicts = true;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    setConflicts(newConflicts);
+    if (hasConflicts) {
+      setStatusText('Conflicts detected! Highlighted in red.');
+    } else {
+      // Check if completely solved
+      const isComplete = board.every(row => row.every(cell => cell !== 0));
+      if (isComplete) {
+        setStatusText('Congratulations! You solved the Sudoku puzzle.');
+      } else {
+        setStatusText('Keep going, no conflicts found!');
+      }
+    }
+  };
+
+  // Backtracking Solver
+  const solveBoard = () => {
+    const board = grid.map(row => [...row]);
+    
+    const isValidValue = (b: number[][], r: number, c: number, val: number): boolean => {
+      for (let i = 0; i < 9; i++) {
+        if (b[r][i] === val && i !== c) return false;
+        if (b[i][c] === val && i !== r) return false;
+        const boxR = 3 * Math.floor(r / 3) + Math.floor(i / 3);
+        const boxC = 3 * Math.floor(c / 3) + (i % 3);
+        if (b[boxR][boxC] === val && (boxR !== r || boxC !== c)) return false;
+      }
+      return true;
+    };
+
+    const backtrack = (b: number[][]): boolean => {
+      for (let r = 0; r < 9; r++) {
+        for (let c = 0; c < 9; c++) {
+          if (b[r][c] === 0) {
+            for (let val = 1; val <= 9; val++) {
+              if (isValidValue(b, r, c, val)) {
+                b[r][c] = val;
+                if (backtrack(b)) return true;
+                b[r][c] = 0;
+              }
+            }
+            return false;
+          }
+        }
+      }
+      return true;
+    };
+
+    if (backtrack(board)) {
+      setGrid(board);
+      setConflicts(Array(9).fill(null).map(() => Array(9).fill(false)));
+      setStatusText('Puzzle solved instantly using backtracking solver!');
+    } else {
+      setStatusText('This puzzle is unsolvable. Verify inputs.');
+    }
+  };
+
+  const handleCustomBoard = () => {
+    setGrid(Array(9).fill(null).map(() => Array(9).fill(0)));
+    setInitialMask(Array(9).fill(null).map(() => Array(9).fill(false)));
+    setConflicts(Array(9).fill(null).map(() => Array(9).fill(false)));
+    setSelectedCell(null);
+    setStatusText('Custom Grid Enabled. Enter clues and click "Solve Board" to solve.');
+  };
+
+  return (
+    <div className="space-y-4 max-w-lg mx-auto">
+      {/* Action triggers */}
+      <div className="flex flex-wrap gap-2 justify-center">
+        <button onClick={() => generateBoard('easy')} className="px-3.5 py-1.5 rounded-xl bg-accent text-slate-950 font-bold text-xs">Easy Mode</button>
+        <button onClick={() => generateBoard('medium')} className="px-3.5 py-1.5 rounded-xl glass-panel border border-white/10 text-slate-200 font-bold text-xs hover:bg-white/5">Medium Mode</button>
+        <button onClick={() => generateBoard('hard')} className="px-3.5 py-1.5 rounded-xl glass-panel border border-white/10 text-slate-200 font-bold text-xs hover:bg-white/5">Hard Mode</button>
+        <button onClick={handleCustomBoard} className="px-3.5 py-1.5 rounded-xl glass-panel border border-accent/20 text-accent font-bold text-xs hover:bg-white/5">Empty Custom</button>
+      </div>
+
+      {/* Grid rendering */}
+      <div className="p-4 glass-panel rounded-3xl border border-white/10">
+        <div className="grid grid-cols-9 gap-1 bg-white/5 p-2 rounded-2xl">
+          {grid.map((row, rIdx) => (
+            row.map((cell, cIdx) => {
+              const isSelected = selectedCell?.r === rIdx && selectedCell?.c === cIdx;
+              const isClue = initialMask[rIdx][cIdx];
+              const isConflict = conflicts[rIdx][cIdx];
+              
+              // 3x3 border groupings
+              const borderRight = (cIdx === 2 || cIdx === 5) ? 'border-r border-white/30' : '';
+              const borderBottom = (rIdx === 2 || rIdx === 5) ? 'border-b border-white/30' : '';
+
+              return (
+                <div
+                  key={`${rIdx}-${cIdx}`}
+                  onClick={() => handleCellClick(rIdx, cIdx)}
+                  className={`aspect-square flex items-center justify-center font-mono text-base font-black rounded-lg cursor-pointer transition-all ${borderRight} ${borderBottom} ${
+                    isClue 
+                      ? 'bg-white/10 text-slate-400' 
+                      : isConflict 
+                        ? 'bg-rose-500/30 text-rose-300 border border-rose-500' 
+                        : isSelected 
+                          ? 'bg-accent/20 border border-accent text-accent scale-105' 
+                          : 'bg-black/40 text-slate-200 hover:bg-white/5'
+                  }`}
+                >
+                  {cell !== 0 ? cell : ''}
+                </div>
+              );
+            })
+          ))}
+        </div>
+      </div>
+
+      {/* Status */}
+      <div className="p-3 text-center glass-panel rounded-2xl border border-white/5 text-xs text-slate-300">
+        {statusText}
+      </div>
+
+      {/* Inputs controls */}
+      <div className="space-y-3">
+        {selectedCell && (
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Input value for selected cell</span>
+            <div className="grid grid-cols-5 gap-1.5 w-full">
+              {[1, 2, 3, 4, 5].map(n => (
+                <button key={n} onClick={() => handleKeyPress(n)} className="py-2.5 rounded-xl bg-accent/20 border border-accent/40 text-accent font-bold text-sm hover:bg-accent/35">{n}</button>
+              ))}
+              {[6, 7, 8, 9].map(n => (
+                <button key={n} onClick={() => handleKeyPress(n)} className="py-2.5 rounded-xl bg-accent/20 border border-accent/40 text-accent font-bold text-sm hover:bg-accent/35">{n}</button>
+              ))}
+              <button onClick={handleClearCell} className="py-2.5 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 font-bold text-sm hover:bg-rose-500/35">C</button>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={solveBoard}
+          className="w-full py-3 rounded-2xl bg-accent text-slate-950 font-black text-xs shadow-lg shadow-accent/25 flex items-center justify-center gap-1.5"
+        >
+          <CheckCircle2 className="w-4 h-4" /> Solve Board Instantly
+        </button>
+      </div>
+    </div>
+  );
+};
+

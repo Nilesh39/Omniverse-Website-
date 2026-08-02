@@ -23,7 +23,8 @@ import {
   QuadraticSolverTool,
   FractionCalculatorTool,
   StatsCalculatorTool,
-  PrimeFactorizerTool
+  PrimeFactorizerTool,
+  GraphingCalculatorTool
 } from '../../tools/MathStudentTools';
 
 import {
@@ -34,7 +35,8 @@ import {
   DiscountCalculatorTool,
   MarginCalculatorTool,
   RoiCalculatorTool,
-  CurrencyConverterTool
+  CurrencyConverterTool,
+  SplitBillsTool
 } from '../../tools/FinanceTools';
 
 import {
@@ -94,12 +96,14 @@ import {
   HabitTrackerTool,
   QuickNotesTool,
   ExpenseTrackerTool,
-  GlassCanvasTool
+  GlassCanvasTool,
+  SudokuGameTool
 } from '../../tools/ProductivityTools';
 
 import {
   BatteryInfoTool,
-  NetworkInfoTool
+  NetworkInfoTool,
+  CompassTool
 } from '../../tools/SystemTools';
 
 interface ToolRendererProps {
@@ -132,6 +136,7 @@ export const ToolRenderer: React.FC<ToolRendererProps> = ({ componentName }) => 
     case 'FractionCalculator': return <FractionCalculatorTool />;
     case 'StatsCalculator': return <StatsCalculatorTool />;
     case 'PrimeFactorizer': return <PrimeFactorizerTool />;
+    case 'GraphingCalculator': return <GraphingCalculatorTool />;
 
     // Finance
     case 'GstCalculator': return <GstCalculatorTool />;
@@ -142,6 +147,7 @@ export const ToolRenderer: React.FC<ToolRendererProps> = ({ componentName }) => 
     case 'MarginCalculator': return <MarginCalculatorTool />;
     case 'RoiCalculator': return <RoiCalculatorTool />;
     case 'CurrencyConverter': return <CurrencyConverterTool />;
+    case 'SplitBills': return <SplitBillsTool />;
 
     // Health
     case 'BmiCalculator': return <BmiCalculatorTool />;
@@ -194,10 +200,12 @@ export const ToolRenderer: React.FC<ToolRendererProps> = ({ componentName }) => 
     case 'QuickNotes': return <QuickNotesTool />;
     case 'ExpenseTracker': return <ExpenseTrackerTool />;
     case 'GlassCanvas': return <GlassCanvasTool />;
+    case 'SudokuGame': return <SudokuGameTool />;
 
     // System
     case 'BatteryInfo': return <BatteryInfoTool />;
     case 'NetworkInfo': return <NetworkInfoTool />;
+    case 'Compass': return <CompassTool />;
 
     default:
       return <PercentageCalculatorTool />;

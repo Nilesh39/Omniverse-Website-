@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BatteryCharging, Battery, BatteryFull, BatteryLow, BatteryMedium, Wifi, WifiOff,
-  Cpu, Play, Monitor, Zap, Globe, ShieldCheck, Activity, Gauge, Server, Smartphone, Info
+  Cpu, Play, Monitor, Zap, Globe, ShieldCheck, Activity, Gauge, Server, Smartphone, Info, Compass
 } from 'lucide-react';
 import { useBattery } from '../hooks/useBattery';
 
@@ -343,6 +343,161 @@ export const NetworkInfoTool: React.FC = () => {
               <strong className="text-slate-200 mt-0.5 block">{ipData.city}, {ipData.country}</strong>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// 3. Precision Orientation Compass
+export const CompassTool: React.FC = () => {
+  const [heading, setHeading] = useState(0);
+  const [pitch, setPitch] = useState(0);
+  const [roll, setRoll] = useState(0);
+  const [hasSensor, setHasSensor] = useState(false);
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(null);
+
+  // Fallback state for desktop
+  const [manualAngle, setManualAngle] = useState(0);
+
+  useEffect(() => {
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      setHasSensor(true);
+      
+      // Get heading (degrees relative to magnetic north)
+      let currentHeading = 0;
+      if (e.alpha !== null) {
+        currentHeading = 360 - e.alpha;
+      }
+      
+      // Check for webkit compass heading
+      if ('webkitCompassHeading' in e) {
+        currentHeading = (e as any).webkitCompassHeading;
+      }
+
+      setHeading(currentHeading);
+      setPitch(e.beta || 0); // pitch: Front/back tilt
+      setRoll(e.gamma || 0); // roll: Left/right tilt
+    };
+
+    window.addEventListener('deviceorientation', handleOrientation, true);
+    
+    // Check if permission required (iOS 13+)
+    if (
+      typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof (DeviceOrientationEvent as any).requestPermission === 'function'
+    ) {
+      setPermissionGranted(false);
+    } else {
+      setPermissionGranted(true);
+    }
+
+    return () => {
+      window.removeEventListener('deviceorientation', handleOrientation, true);
+    };
+  }, []);
+
+  const requestPermission = async () => {
+    try {
+      const permissionState = await (DeviceOrientationEvent as any).requestPermission();
+      if (permissionState === 'granted') {
+        setPermissionGranted(true);
+      } else {
+        alert('Permission denied for orientation sensors.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Could not request device orientation permissions.');
+    }
+  };
+
+  // Convert degrees to direction letter
+  const getDirection = (deg: number) => {
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const idx = Math.round(deg / 45) % 8;
+    return directions[idx];
+  };
+
+  const activeHeading = hasSensor ? heading : manualAngle;
+
+  return (
+    <div className="space-y-6 max-w-md mx-auto text-center">
+      {/* Sensor request permission block if iOS */}
+      {permissionGranted === false && (
+        <div className="p-4 glass-panel rounded-2xl border border-accent/30 bg-accent/5 space-y-2">
+          <span className="text-xs font-bold text-slate-200">Device Magnetometer Permissions Required</span>
+          <p className="text-[11px] text-slate-400">iOS requires manual authorization to stream orientation and gyroscope data.</p>
+          <button onClick={requestPermission} className="px-4 py-2 rounded-xl bg-accent text-slate-950 font-bold text-xs">
+            Authorize Compass Sensor
+          </button>
+        </div>
+      )}
+
+      {/* Compass Dial Display */}
+      <div className="relative w-64 h-64 mx-auto flex items-center justify-center">
+        {/* Ring outer wrapper */}
+        <div className="absolute inset-0 rounded-full border border-white/10 glass-panel shadow-[0_0_20px_rgba(255,255,255,0.03)]" />
+        
+        {/* Rotated ticks ring */}
+        <div 
+          className="absolute inset-2 rounded-full border border-white/5 bg-black/40 transition-transform duration-100 ease-out"
+          style={{ transform: `rotate(${-activeHeading}deg)` }}
+        >
+          {/* Compass Direction Cards */}
+          <span className="absolute top-2 left-1/2 -translate-x-1/2 font-mono text-base font-black text-rose-400">N</span>
+          <span className="absolute right-2 top-1/2 -translate-y-1/2 font-mono text-base font-black text-slate-300">E</span>
+          <span className="absolute bottom-2 left-1/2 -translate-x-1/2 font-mono text-base font-black text-slate-300">S</span>
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 font-mono text-base font-black text-slate-300">W</span>
+          
+          {/* Degree Ticks */}
+          <div className="absolute inset-0 border border-dashed border-white/15 rounded-full scale-90" />
+        </div>
+
+        {/* Center Pointer Dial */}
+        <div className="absolute w-6 h-36 bg-gradient-to-b from-rose-500 via-transparent to-accent rounded-full scale-y-75 opacity-80" />
+
+        {/* Core readout */}
+        <div className="absolute w-28 h-28 rounded-full bg-[#090d16]/90 border border-white/10 shadow-2xl flex flex-col items-center justify-center">
+          <span className="text-3xl font-black text-slate-100 tracking-tight font-mono">
+            {Math.round(activeHeading)}°
+          </span>
+          <span className="text-xs font-black text-accent mt-0.5">
+            {getDirection(activeHeading)}
+          </span>
+        </div>
+      </div>
+
+      {/* Heading breakdown metrics */}
+      <div className="grid grid-cols-2 gap-3 font-mono text-xs">
+        <div className="p-3 rounded-2xl glass-panel border border-white/5">
+          <span className="text-[10px] text-slate-400 block uppercase">Sensor State</span>
+          <strong className={`mt-0.5 block ${hasSensor ? 'text-emerald-400' : 'text-amber-400'}`}>
+            {hasSensor ? 'Active Gyro' : 'Backup Manual'}
+          </strong>
+        </div>
+        <div className="p-3 rounded-2xl glass-panel border border-white/5">
+          <span className="text-[10px] text-slate-400 block uppercase">Tilt / Roll</span>
+          <strong className="text-slate-200 mt-0.5 block">
+            {Math.round(pitch)}° / {Math.round(roll)}°
+          </strong>
+        </div>
+      </div>
+
+      {/* Fallback Manual control slider */}
+      {!hasSensor && (
+        <div className="p-4 glass-panel rounded-3xl border border-white/10 space-y-2.5">
+          <div className="flex justify-between text-xs font-bold text-slate-400">
+            <span>Manual Rotation Control (Desktop Fallback)</span>
+            <span className="text-accent">{Math.round(manualAngle)}°</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="359"
+            value={manualAngle}
+            onChange={(e) => setManualAngle(Number(e.target.value))}
+            className="w-full h-1 bg-black/40 rounded-full appearance-none cursor-pointer accent-accent"
+          />
         </div>
       )}
     </div>
