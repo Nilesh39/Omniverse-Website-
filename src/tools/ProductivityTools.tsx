@@ -819,12 +819,14 @@ export const GlassCanvasTool: React.FC = () => {
 export const SudokuGameTool: React.FC = () => {
   const [grid, setGrid] = useState<number[][]>(() => Array(9).fill(null).map(() => Array(9).fill(0)));
   const [initialMask, setInitialMask] = useState<boolean[][]>(() => Array(9).fill(null).map(() => Array(9).fill(false)));
+  const [solution, setSolution] = useState<number[][]>(() => Array(9).fill(null).map(() => Array(9).fill(0)));
   const [selectedCell, setSelectedCell] = useState<{ r: number; c: number } | null>(null);
   const [conflicts, setConflicts] = useState<boolean[][]>(() => Array(9).fill(null).map(() => Array(9).fill(false)));
+  const [showMistakes, setShowMistakes] = useState(true);
   const [statusText, setStatusText] = useState('Select a difficulty level or custom board to begin.');
 
   const generateBoard = (difficulty: 'easy' | 'medium' | 'hard') => {
-    // Standard basic template solved sudoku
+    // Standard template solved sudoku
     const solved = [
       [5, 3, 4, 6, 7, 8, 9, 1, 2],
       [6, 7, 2, 1, 9, 5, 3, 4, 8],
@@ -837,13 +839,42 @@ export const SudokuGameTool: React.FC = () => {
       [3, 4, 5, 2, 8, 6, 1, 7, 9]
     ];
 
-    // Shuffle solved board columns and rows inside their 3x3 blocks for randomized boards
-    const board = solved.map(row => [...row]);
-    
+    let board = solved.map(row => [...row]);
+
+    // Shuffle solved board rows within their 3x3 blocks
+    for (let i = 0; i < 15; i++) {
+      const bOffset = Math.floor(Math.random() * 3) * 3;
+      const r1 = bOffset + Math.floor(Math.random() * 3);
+      const r2 = bOffset + Math.floor(Math.random() * 3);
+      if (r1 !== r2) {
+        const temp = board[r1];
+        board[r1] = board[r2];
+        board[r2] = temp;
+      }
+    }
+
+    // Shuffle solved board columns within their 3x3 blocks
+    for (let i = 0; i < 15; i++) {
+      const bOffset = Math.floor(Math.random() * 3) * 3;
+      const c1 = bOffset + Math.floor(Math.random() * 3);
+      const c2 = bOffset + Math.floor(Math.random() * 3);
+      if (c1 !== c2) {
+        for (let r = 0; r < 9; r++) {
+          const temp = board[r][c1];
+          board[r][c1] = board[r][c2];
+          board[r][c2] = temp;
+        }
+      }
+    }
+
+    // Save final shuffled solution
+    const finalSolution = board.map(row => [...row]);
+    setSolution(finalSolution);
+
     // Determine number of empty cells
-    let empties = 40;
-    if (difficulty === 'medium') empties = 50;
-    if (difficulty === 'hard') empties = 58;
+    let empties = 35; // Easy mode
+    if (difficulty === 'medium') empties = 45;
+    if (difficulty === 'hard') empties = 54;
 
     const mask = Array(9).fill(null).map(() => Array(9).fill(false));
     let count = 0;
@@ -895,6 +926,20 @@ export const SudokuGameTool: React.FC = () => {
     validateGrid(newGrid);
   };
 
+  // Listen to physical keyboard events
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!selectedCell) return;
+      if (e.key >= '1' && e.key <= '9') {
+        handleKeyPress(Number(e.key));
+      } else if (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'c' || e.key === 'C') {
+        handleClearCell();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCell, grid]);
+
   const validateGrid = (board: number[][]) => {
     const newConflicts = Array(9).fill(null).map(() => Array(9).fill(false));
     let hasConflicts = false;
@@ -939,20 +984,36 @@ export const SudokuGameTool: React.FC = () => {
 
     setConflicts(newConflicts);
     if (hasConflicts) {
-      setStatusText('Conflicts detected! Highlighted in red.');
+      setStatusText('Conflict detected in row, column, or 3x3 grid!');
     } else {
       // Check if completely solved
       const isComplete = board.every(row => row.every(cell => cell !== 0));
       if (isComplete) {
-        setStatusText('Congratulations! You solved the Sudoku puzzle.');
+        // Double check against solution
+        const matchesSolution = board.every((row, rIdx) => row.every((cell, cIdx) => cell === solution[rIdx][cIdx]));
+        if (matchesSolution) {
+          setStatusText('Congratulations! Puzzle solved correctly.');
+        } else {
+          setStatusText('Board complete, but some inputs do not match the correct solution.');
+        }
       } else {
-        setStatusText('Keep going, no conflicts found!');
+        setStatusText('No duplicate conflicts detected. Keep going!');
       }
     }
   };
 
   // Backtracking Solver
   const solveBoard = () => {
+    // If solution state exists, just set it directly to avoid complex backtracking lags
+    const isSolutionAvailable = solution.some(row => row.some(cell => cell !== 0));
+    if (isSolutionAvailable) {
+      setGrid(solution.map(row => [...row]));
+      setConflicts(Array(9).fill(null).map(() => Array(9).fill(false)));
+      setStatusText('Puzzle solved instantly using stored solution template!');
+      return;
+    }
+
+    // Fallback: solve using backtracking solver (e.g. for custom boards)
     const board = grid.map(row => [...row]);
     
     const isValidValue = (b: number[][], r: number, c: number, val: number): boolean => {
@@ -987,7 +1048,7 @@ export const SudokuGameTool: React.FC = () => {
     if (backtrack(board)) {
       setGrid(board);
       setConflicts(Array(9).fill(null).map(() => Array(9).fill(false)));
-      setStatusText('Puzzle solved instantly using backtracking solver!');
+      setStatusText('Puzzle solved using recursive backtracking solver!');
     } else {
       setStatusText('This puzzle is unsolvable. Verify inputs.');
     }
@@ -996,19 +1057,34 @@ export const SudokuGameTool: React.FC = () => {
   const handleCustomBoard = () => {
     setGrid(Array(9).fill(null).map(() => Array(9).fill(0)));
     setInitialMask(Array(9).fill(null).map(() => Array(9).fill(false)));
+    setSolution(Array(9).fill(null).map(() => Array(9).fill(0)));
     setConflicts(Array(9).fill(null).map(() => Array(9).fill(false)));
     setSelectedCell(null);
-    setStatusText('Custom Grid Enabled. Enter clues and click "Solve Board" to solve.');
+    setStatusText('Custom Grid Enabled. Enter clues and click "Solve Board".');
   };
 
   return (
     <div className="space-y-4 max-w-lg mx-auto">
-      {/* Action triggers */}
+      {/* Game Mode Controls */}
       <div className="flex flex-wrap gap-2 justify-center">
         <button onClick={() => generateBoard('easy')} className="px-3.5 py-1.5 rounded-xl bg-accent text-slate-950 font-bold text-xs">Easy Mode</button>
         <button onClick={() => generateBoard('medium')} className="px-3.5 py-1.5 rounded-xl glass-panel border border-white/10 text-slate-200 font-bold text-xs hover:bg-white/5">Medium Mode</button>
         <button onClick={() => generateBoard('hard')} className="px-3.5 py-1.5 rounded-xl glass-panel border border-white/10 text-slate-200 font-bold text-xs hover:bg-white/5">Hard Mode</button>
         <button onClick={handleCustomBoard} className="px-3.5 py-1.5 rounded-xl glass-panel border border-accent/20 text-accent font-bold text-xs hover:bg-white/5">Empty Custom</button>
+      </div>
+
+      {/* Accuracy & Validation Toggles */}
+      <div className="flex items-center justify-between px-2 text-xs">
+        <span className="text-slate-400 font-medium">Verify accuracy against solution template:</span>
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={showMistakes}
+            onChange={(e) => setShowMistakes(e.target.checked)}
+            className="sr-only peer"
+          />
+          <div className="w-9 h-5 bg-black/40 border border-white/10 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-slate-400 after:border-slate-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-accent peer-checked:after:bg-slate-950" />
+        </label>
       </div>
 
       {/* Grid rendering */}
@@ -1020,23 +1096,40 @@ export const SudokuGameTool: React.FC = () => {
               const isClue = initialMask[rIdx][cIdx];
               const isConflict = conflicts[rIdx][cIdx];
               
-              // 3x3 border groupings
-              const borderRight = (cIdx === 2 || cIdx === 5) ? 'border-r border-white/30' : '';
-              const borderBottom = (rIdx === 2 || rIdx === 5) ? 'border-b border-white/30' : '';
+              // Verify mistake if cell has input and is different from solution template
+              const isMistake = showMistakes && cell !== 0 && solution[rIdx]?.[cIdx] !== undefined && solution[rIdx][cIdx] !== 0 && cell !== solution[rIdx][cIdx];
+
+              // Alternating 3x3 block subgrid backgrounds
+              const boxRowIdx = Math.floor(rIdx / 3);
+              const boxColIdx = Math.floor(cIdx / 3);
+              const isEvenBox = (boxRowIdx + boxColIdx) % 2 === 0;
+              const boxBg = isEvenBox ? 'bg-white/[0.04]' : 'bg-black/30';
+
+              // Visual styling priorities
+              let cellStyle = `${boxBg} text-slate-200 hover:bg-white/5 border border-white/5`;
+
+              if (isClue) {
+                cellStyle = 'bg-white/15 text-slate-400 font-bold border border-white/5';
+                if (isConflict) {
+                  cellStyle = 'bg-rose-950/40 text-rose-300 border border-dashed border-rose-500/50';
+                }
+              } else if (isConflict || isMistake) {
+                cellStyle = 'bg-rose-500/20 text-rose-300 border border-rose-500 scale-102';
+              } else if (cell !== 0) {
+                cellStyle = 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/40';
+              } else if (isSelected) {
+                cellStyle = 'bg-accent/20 border border-accent text-accent scale-105';
+              }
+
+              // 3x3 visual boundary lines
+              const borderRight = (cIdx === 2 || cIdx === 5) ? 'border-r border-white/30 mr-0.5' : '';
+              const borderBottom = (rIdx === 2 || rIdx === 5) ? 'border-b border-white/30 mb-0.5' : '';
 
               return (
                 <div
                   key={`${rIdx}-${cIdx}`}
                   onClick={() => handleCellClick(rIdx, cIdx)}
-                  className={`aspect-square flex items-center justify-center font-mono text-base font-black rounded-lg cursor-pointer transition-all ${borderRight} ${borderBottom} ${
-                    isClue 
-                      ? 'bg-white/10 text-slate-400' 
-                      : isConflict 
-                        ? 'bg-rose-500/30 text-rose-300 border border-rose-500' 
-                        : isSelected 
-                          ? 'bg-accent/20 border border-accent text-accent scale-105' 
-                          : 'bg-black/40 text-slate-200 hover:bg-white/5'
-                  }`}
+                  className={`aspect-square flex items-center justify-center font-mono text-base font-black rounded-lg cursor-pointer transition-all ${borderRight} ${borderBottom} ${cellStyle}`}
                 >
                   {cell !== 0 ? cell : ''}
                 </div>
@@ -1046,8 +1139,8 @@ export const SudokuGameTool: React.FC = () => {
         </div>
       </div>
 
-      {/* Status */}
-      <div className="p-3 text-center glass-panel rounded-2xl border border-white/5 text-xs text-slate-300">
+      {/* Status Alert block */}
+      <div className="p-3 text-center glass-panel rounded-2xl border border-white/5 text-xs text-slate-300 font-medium">
         {statusText}
       </div>
 
