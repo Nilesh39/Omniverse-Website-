@@ -100,14 +100,21 @@ export const QuickNotesTool: React.FC = () => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [saved, setSaved] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   useEffect(() => {
-    if (notes && notes.length > 0 && activeNoteId === null) {
-      setActiveNoteId(notes[0].id || null);
-      setTitle(notes[0].title);
-      setContent(notes[0].content);
+    if (notes && !hasInitialized) {
+      if (notes.length > 0) {
+        setActiveNoteId(notes[0].id || null);
+        setTitle(notes[0].title);
+        setContent(notes[0].content);
+      } else {
+        setTitle('Untitled Glass Note');
+        setContent('');
+      }
+      setHasInitialized(true);
     }
-  }, [notes, activeNoteId]);
+  }, [notes, hasInitialized]);
 
   const createNewNote = () => {
     setActiveNoteId(null);
@@ -138,7 +145,16 @@ export const QuickNotesTool: React.FC = () => {
 
   const deleteNote = async (id: number) => {
     await db.notes.delete(id);
-    setActiveNoteId(null);
+    if (activeNoteId === id) {
+      const remaining = notes?.filter(n => n.id !== id) || [];
+      if (remaining.length > 0) {
+        setActiveNoteId(remaining[0].id || null);
+        setTitle(remaining[0].title);
+        setContent(remaining[0].content);
+      } else {
+        createNewNote();
+      }
+    }
   };
 
   return (
