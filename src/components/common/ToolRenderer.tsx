@@ -99,7 +99,8 @@ import {
   QuickNotesTool,
   ExpenseTrackerTool,
   GlassCanvasTool,
-  SudokuGameTool
+  SudokuGameTool,
+  RubiksCubeTool
 } from '../../tools/ProductivityTools';
 
 import {
@@ -205,6 +206,7 @@ export const ToolRenderer: React.FC<ToolRendererProps> = ({ componentName }) => 
     case 'ExpenseTracker': return <ExpenseTrackerTool />;
     case 'GlassCanvas': return <GlassCanvasTool />;
     case 'SudokuGame': return <SudokuGameTool />;
+    case 'RubiksCube': return <RubiksCubeTool />;
 
     // System
     case 'BatteryInfo': return <BatteryInfoTool />;

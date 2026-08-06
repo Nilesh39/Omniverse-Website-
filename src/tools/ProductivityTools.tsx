@@ -1172,3 +1172,477 @@ export const SudokuGameTool: React.FC = () => {
   );
 };
 
+// 6. 3D Rubik's Cube Solver & Game
+interface CubeState {
+  U: string[];
+  D: string[];
+  L: string[];
+  R: string[];
+  F: string[];
+  B: string[];
+}
+
+export const RubiksCubeTool: React.FC = () => {
+  const [cube, setCube] = useState<CubeState>({
+    U: Array(9).fill('W'),
+    D: Array(9).fill('Y'),
+    L: Array(9).fill('O'),
+    R: Array(9).fill('R'),
+    F: Array(9).fill('G'),
+    B: Array(9).fill('B')
+  });
+
+  const [selectedColor, setSelectedColor] = useState<string>('W');
+  const [rotation, setRotation] = useState({ x: -30, y: 45 });
+  const [isRotating, setIsRotating] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // Solver states
+  const [scrambleMoves, setScrambleMoves] = useState<string[]>([]);
+  const [solutionSteps, setSolutionSteps] = useState<string[]>([]);
+  const [currentStepIdx, setCurrentStepIdx] = useState(-1);
+  const [statusMsg, setStatusMsg] = useState('Scramble the cube or click face rotation triggers to play.');
+
+  // Color Swatches Mappings
+  const colorMap: Record<string, string> = {
+    'W': '#ffffff', // White (U)
+    'Y': '#eab308', // Yellow (D)
+    'O': '#ea580c', // Orange (L)
+    'R': '#dc2626', // Red (R)
+    'G': '#16a34a', // Green (F)
+    'B': '#2563eb'  // Blue (B)
+  };
+
+  const getOppositeMove = (move: string): string => {
+    return move.endsWith("'") ? move.slice(0, -1) : `${move}'`;
+  };
+
+  // Helper rotation arrays
+  const rotateCW = (arr: string[]): string[] => [
+    arr[6], arr[3], arr[0],
+    arr[7], arr[4], arr[1],
+    arr[8], arr[5], arr[2]
+  ];
+
+  const rotateCCW = (arr: string[]): string[] => [
+    arr[2], arr[5], arr[8],
+    arr[1], arr[4], arr[7],
+    arr[0], arr[3], arr[6]
+  ];
+
+  // Rotate layer functions
+  const performMove = (move: string) => {
+    setCube((prev) => {
+      const next: CubeState = {
+        U: [...prev.U],
+        D: [...prev.D],
+        L: [...prev.L],
+        R: [...prev.R],
+        F: [...prev.F],
+        B: [...prev.B]
+      };
+
+      switch (move) {
+        case 'U':
+          next.U = rotateCW(prev.U);
+          next.F[0] = prev.R[0]; next.F[1] = prev.R[1]; next.F[2] = prev.R[2];
+          next.L[0] = prev.F[0]; next.L[1] = prev.F[1]; next.L[2] = prev.F[2];
+          next.B[0] = prev.L[0]; next.B[1] = prev.L[1]; next.B[2] = prev.L[2];
+          next.R[0] = prev.B[0]; next.R[1] = prev.B[1]; next.R[2] = prev.B[2];
+          break;
+        case "U'":
+          next.U = rotateCCW(prev.U);
+          next.F[0] = prev.L[0]; next.F[1] = prev.L[1]; next.F[2] = prev.L[2];
+          next.R[0] = prev.F[0]; next.R[1] = prev.F[1]; next.R[2] = prev.F[2];
+          next.B[0] = prev.R[0]; next.B[1] = prev.R[1]; next.B[2] = prev.R[2];
+          next.L[0] = prev.B[0]; next.L[1] = prev.B[1]; next.L[2] = prev.B[2];
+          break;
+        case 'D':
+          next.D = rotateCW(prev.D);
+          next.F[6] = prev.L[6]; next.F[7] = prev.L[7]; next.F[8] = prev.L[8];
+          next.R[6] = prev.F[6]; next.R[7] = prev.F[7]; next.R[8] = prev.F[8];
+          next.B[6] = prev.R[6]; next.B[7] = prev.R[7]; next.B[8] = prev.R[8];
+          next.L[6] = prev.B[6]; next.L[7] = prev.B[7]; next.L[8] = prev.B[8];
+          break;
+        case "D'":
+          next.D = rotateCCW(prev.D);
+          next.F[6] = prev.R[6]; next.F[7] = prev.R[7]; next.F[8] = prev.R[8];
+          next.L[6] = prev.F[6]; next.L[7] = prev.F[7]; next.L[8] = prev.F[8];
+          next.B[6] = prev.L[6]; next.B[7] = prev.L[7]; next.B[8] = prev.L[8];
+          next.R[6] = prev.B[6]; next.R[7] = prev.B[7]; next.R[8] = prev.B[8];
+          break;
+        case 'R':
+          next.R = rotateCW(prev.R);
+          next.U[2] = prev.F[2]; next.U[5] = prev.F[5]; next.U[8] = prev.F[8];
+          next.B[6] = prev.U[2]; next.B[3] = prev.U[5]; next.B[0] = prev.U[8];
+          next.D[2] = prev.B[6]; next.D[5] = prev.B[3]; next.D[8] = prev.B[0];
+          next.F[2] = prev.D[2]; next.F[5] = prev.D[5]; next.F[8] = prev.D[8];
+          break;
+        case "R'":
+          next.R = rotateCCW(prev.R);
+          next.U[2] = prev.B[6]; next.U[5] = prev.B[3]; next.U[8] = prev.B[0];
+          next.F[2] = prev.U[2]; next.F[5] = prev.U[5]; next.F[8] = prev.U[8];
+          next.D[2] = prev.F[2]; next.D[5] = prev.F[5]; next.D[8] = prev.F[8];
+          next.B[6] = prev.D[2]; next.B[3] = prev.D[5]; next.B[0] = prev.D[8];
+          break;
+        case 'L':
+          next.L = rotateCW(prev.L);
+          next.U[0] = prev.B[8]; next.U[3] = prev.B[5]; next.U[6] = prev.B[2];
+          next.F[0] = prev.U[0]; next.F[3] = prev.U[3]; next.F[6] = prev.U[6];
+          next.D[0] = prev.F[0]; next.D[3] = prev.F[3]; next.D[6] = prev.F[6];
+          next.B[8] = prev.D[0]; next.B[5] = prev.D[3]; next.B[2] = prev.D[6];
+          break;
+        case "L'":
+          next.L = rotateCCW(prev.L);
+          next.U[0] = prev.F[0]; next.U[3] = prev.F[3]; next.U[6] = prev.F[6];
+          next.B[8] = prev.U[0]; next.B[5] = prev.U[3]; next.B[2] = prev.U[6];
+          next.D[0] = prev.B[8]; next.D[3] = prev.B[5]; next.D[6] = prev.B[2];
+          next.F[0] = prev.D[0]; next.F[3] = prev.D[3]; next.F[6] = prev.D[6];
+          break;
+        case 'F':
+          next.F = rotateCW(prev.F);
+          next.U[6] = prev.L[8]; next.U[7] = prev.L[5]; next.U[8] = prev.L[2];
+          next.R[0] = prev.U[6]; next.R[3] = prev.U[7]; next.R[6] = prev.U[8];
+          next.D[2] = prev.R[0]; next.D[1] = prev.R[3]; next.D[0] = prev.R[6];
+          next.L[8] = prev.D[2]; next.L[5] = prev.D[1]; next.L[2] = prev.D[0];
+          break;
+        case "F'":
+          next.F = rotateCCW(prev.F);
+          next.L[8] = prev.U[6]; next.L[5] = prev.U[7]; next.L[2] = prev.U[8];
+          next.D[2] = prev.L[8]; next.D[1] = prev.L[5]; next.D[0] = prev.L[2];
+          next.R[0] = prev.D[2]; next.R[3] = prev.D[1]; next.R[6] = prev.D[0];
+          next.U[6] = prev.R[0]; next.U[7] = prev.R[3]; next.U[8] = prev.R[6];
+          break;
+        case 'B':
+          next.B = rotateCW(prev.B);
+          next.U[0] = prev.R[2]; next.U[1] = prev.R[5]; next.U[2] = prev.R[8];
+          next.L[6] = prev.U[0]; next.L[3] = prev.U[1]; next.L[0] = prev.U[2];
+          next.D[8] = prev.L[6]; next.D[7] = prev.L[3]; next.D[6] = prev.L[0];
+          next.R[2] = prev.D[8]; next.R[5] = prev.D[7]; next.R[8] = prev.D[6];
+          break;
+        case "B'":
+          next.B = rotateCCW(prev.B);
+          next.R[2] = prev.U[0]; next.R[5] = prev.U[1]; next.R[8] = prev.U[2];
+          next.D[8] = prev.R[2]; next.D[7] = prev.R[5]; next.D[6] = prev.R[8];
+          next.L[6] = prev.D[8]; next.L[3] = prev.D[7]; next.L[0] = prev.D[6];
+          next.U[0] = prev.L[6]; next.U[1] = prev.L[3]; next.U[2] = prev.L[0];
+          break;
+      }
+
+      return next;
+    });
+  };
+
+  // Scramble cube with 15 random moves
+  const handleScramble = () => {
+    const moves = ['U', "U'", 'D', "D'", 'R', "R'", 'L', "L'", 'F', "F'", 'B', "B'"];
+    const sequence: string[] = [];
+    for (let i = 0; i < 15; i++) {
+      const randMove = moves[Math.floor(Math.random() * moves.length)];
+      sequence.push(randMove);
+    }
+
+    // Apply scramble sequentially
+    sequence.forEach(move => performMove(move));
+    setScrambleMoves(sequence);
+
+    // Build reversed solution steps
+    const reversed = [...sequence].reverse().map(m => getOppositeMove(m));
+    setSolutionSteps(reversed);
+    setCurrentStepIdx(-1);
+    setStatusMsg('Cube scrambled successfully! Click "Solve Next Step" to begin solver guidance.');
+  };
+
+  const handleNextSolveStep = () => {
+    if (currentStepIdx < solutionSteps.length - 1) {
+      const nextIdx = currentStepIdx + 1;
+      const move = solutionSteps[nextIdx];
+      performMove(move);
+      setCurrentStepIdx(nextIdx);
+      setStatusMsg(`Step ${nextIdx + 1}/${solutionSteps.length}: Execute ${move}`);
+    } else {
+      setStatusMsg('Cube is fully solved! Great job.');
+    }
+  };
+
+  const handlePrevSolveStep = () => {
+    if (currentStepIdx >= 0) {
+      const move = solutionSteps[currentStepIdx];
+      const inverse = getOppositeMove(move);
+      performMove(inverse);
+      setCurrentStepIdx(currentStepIdx - 1);
+      setStatusMsg(currentStepIdx > 0 ? `Went back. Next step: ${solutionSteps[currentStepIdx]}` : 'Ready to start solving.');
+    }
+  };
+
+  const handleStickerClick = (face: keyof CubeState, idx: number) => {
+    setCube((prev) => {
+      const next = { ...prev };
+      next[face] = [...prev[face]];
+      next[face][idx] = selectedColor;
+      return next;
+    });
+  };
+
+  const handleReset = () => {
+    setCube({
+      U: Array(9).fill('W'),
+      D: Array(9).fill('Y'),
+      L: Array(9).fill('O'),
+      R: Array(9).fill('R'),
+      F: Array(9).fill('G'),
+      B: Array(9).fill('B')
+    });
+    setScrambleMoves([]);
+    setSolutionSteps([]);
+    setCurrentStepIdx(-1);
+    setStatusMsg('Cube reset to solved state.');
+  };
+
+  // Drag listeners to rotate 3D view
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsRotating(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isRotating) return;
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    setRotation(prev => ({
+      x: prev.x - dy * 0.5,
+      y: prev.y + dx * 0.5
+    }));
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleMouseUp = () => {
+    setIsRotating(false);
+  };
+
+  // Validate state
+  const counts: Record<string, number> = { W: 0, Y: 0, O: 0, R: 0, G: 0, B: 0 };
+  Object.values(cube).forEach(face => {
+    face.forEach(col => {
+      if (counts[col] !== undefined) counts[col]++;
+    });
+  });
+
+  const isInvalid = Object.values(counts).some(cnt => cnt !== 9);
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Left Side: 3D Render Window */}
+        <div className="md:col-span-1 flex flex-col items-center space-y-4">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">3D Isometric View (Drag to rotate)</span>
+          
+          <div
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            className="w-64 h-64 glass-panel border border-white/10 rounded-3xl flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden perspective-1000 relative"
+          >
+            {/* 3D Cube container */}
+            <div
+              className="w-32 h-32 relative transform-style-3d transition-transform duration-100"
+              style={{ transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)` }}
+            >
+              {/* Up Face */}
+              <div
+                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
+                style={{ transform: 'rotateX(90deg) translateZ(64px)' }}
+              >
+                {cube.U.map((c, i) => (
+                  <div key={`u-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+
+              {/* Front Face */}
+              <div
+                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
+                style={{ transform: 'rotateY(0deg) translateZ(64px)' }}
+              >
+                {cube.F.map((c, i) => (
+                  <div key={`f-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+
+              {/* Right Face */}
+              <div
+                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
+                style={{ transform: 'rotateY(90deg) translateZ(64px)' }}
+              >
+                {cube.R.map((c, i) => (
+                  <div key={`r-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+
+              {/* Left Face */}
+              <div
+                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
+                style={{ transform: 'rotateY(-90deg) translateZ(64px)' }}
+              >
+                {cube.L.map((c, i) => (
+                  <div key={`l-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+
+              {/* Back Face */}
+              <div
+                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
+                style={{ transform: 'rotateY(180deg) translateZ(64px)' }}
+              >
+                {cube.B.map((c, i) => (
+                  <div key={`b-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+
+              {/* Down Face */}
+              <div
+                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
+                style={{ transform: 'rotateX(-90deg) translateZ(64px)' }}
+              >
+                {cube.D.map((c, i) => (
+                  <div key={`d-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-2 w-full">
+            <button onClick={handleScramble} className="flex-1 py-2 text-xs font-bold rounded-xl bg-accent text-slate-950 shadow-md">
+              Scramble (15 Moves)
+            </button>
+            <button onClick={handleReset} className="px-4 py-2 text-xs font-bold rounded-xl bg-white/5 border border-white/10 text-slate-300">
+              Reset
+            </button>
+          </div>
+        </div>
+
+        {/* Center: Unfolded 2D Net Editor */}
+        <div className="md:col-span-2 space-y-4">
+          <div className="flex justify-between items-center px-1">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unfolded Flat net Editor</span>
+            <div className="flex items-center gap-1.5">
+              {Object.keys(colorMap).map(col => (
+                <button
+                  key={col}
+                  onClick={() => setSelectedColor(col)}
+                  className={`w-5 h-5 rounded-lg border transition-all ${selectedColor === col ? 'scale-125 border-white ring-2 ring-accent/40' : 'border-white/20'}`}
+                  style={{ backgroundColor: colorMap[col] }}
+                />
+              ))}
+            </div>
+          </div>
+
+          <div className="p-4 glass-panel rounded-3xl border border-white/10 flex flex-col items-center justify-center space-y-1">
+            {/* Row 1: U Face */}
+            <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+              {cube.U.map((c, idx) => (
+                <button key={`u-net-${idx}`} onClick={() => handleStickerClick('U', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+              ))}
+            </div>
+
+            {/* Row 2: L, F, R, B Adjacent Faces */}
+            <div className="flex gap-2">
+              <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+                {cube.L.map((c, idx) => (
+                  <button key={`l-net-${idx}`} onClick={() => handleStickerClick('L', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+                {cube.F.map((c, idx) => (
+                  <button key={`f-net-${idx}`} onClick={() => handleStickerClick('F', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+                {cube.R.map((c, idx) => (
+                  <button key={`r-net-${idx}`} onClick={() => handleStickerClick('R', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+                {cube.B.map((c, idx) => (
+                  <button key={`b-net-${idx}`} onClick={() => handleStickerClick('B', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                ))}
+              </div>
+            </div>
+
+            {/* Row 3: D Face */}
+            <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+              {cube.D.map((c, idx) => (
+                <button key={`d-net-${idx}`} onClick={() => handleStickerClick('D', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+              ))}
+            </div>
+          </div>
+
+          <div className="p-3 text-center rounded-2xl glass-panel text-xs text-slate-300 border border-white/5 font-medium leading-relaxed">
+            {statusMsg}
+            {isInvalid && (
+              <span className="block text-[10px] text-rose-400 font-bold mt-1 uppercase">
+                ⚠️ Warning: Color counts are unbalanced. Must have exactly 9 of each color.
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {solutionSteps.length > 0 && (
+        <div className="p-5 glass-panel rounded-3xl border border-accent/30 bg-accent/5 space-y-4">
+          <div className="flex justify-between items-center">
+            <span className="text-xs font-bold text-slate-300">Autosolver Step-by-Step Moves Player</span>
+            <span className="text-xs font-mono font-bold text-accent">Total Solution Length: {solutionSteps.length} Moves</span>
+          </div>
+
+          <div className="flex items-center gap-1.5 overflow-x-auto py-2">
+            {solutionSteps.map((step, idx) => (
+              <span
+                key={idx}
+                className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold shrink-0 border ${
+                  idx === currentStepIdx
+                    ? 'bg-accent text-slate-950 border-accent scale-110 shadow-lg'
+                    : idx < currentStepIdx
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 opacity-60'
+                    : 'glass-panel border-white/10 text-slate-400'
+                }`}
+              >
+                {step}
+              </span>
+            ))}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handlePrevSolveStep}
+              disabled={currentStepIdx < 0}
+              className="flex-1 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-300 text-xs font-bold disabled:opacity-30 hover:bg-white/10"
+            >
+              ⬅ Prev Step
+            </button>
+            <button
+              onClick={handleNextSolveStep}
+              disabled={currentStepIdx >= solutionSteps.length - 1}
+              className="flex-1 py-2.5 rounded-xl bg-accent text-slate-950 text-xs font-black shadow-lg disabled:opacity-30"
+            >
+              Solve Next Step ➡
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="p-4 glass-panel rounded-3xl border border-white/10 space-y-3">
+        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Manual Layer Rotations</span>
+        <div className="grid grid-cols-6 gap-2">
+          {['U', 'D', 'R', 'L', 'F', 'B'].map(move => (
+            <div key={move} className="flex flex-col gap-1.5">
+              <button onClick={() => performMove(move)} className="py-2 rounded-xl bg-accent/25 border border-accent/40 text-accent font-bold text-xs hover:bg-accent/40">{move}</button>
+              <button onClick={() => performMove(`${move}'`)} className="py-2 rounded-xl glass-panel border border-white/10 text-slate-300 font-bold text-xs hover:bg-white/10">{move}'</button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+

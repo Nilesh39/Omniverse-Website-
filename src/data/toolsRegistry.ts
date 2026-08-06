@@ -734,6 +734,16 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     popular: true,
     componentName: 'SudokuGame'
   },
+  {
+    id: 'rubiks-cube',
+    title: '3D Rubik\'s Cube Solver & Game',
+    description: 'Interact with a 3D isometric Rubik\'s cube, play, scramble, and use the step-by-step solver guide.',
+    category: 'productivity',
+    icon: 'Box',
+    keywords: ['rubik', 'cube', 'solve', 'logic', 'game', '3d', 'puzzle'],
+    popular: true,
+    componentName: 'RubiksCube'
+  },
 
   // SYSTEM & NETWORK
   {
