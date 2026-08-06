@@ -20,8 +20,12 @@ export function useBattery(): BatteryState {
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const nav = navigator as any;
+    let batteryObj: any = null;
+    let updateBatteryFn: (() => void) | null = null;
+
     if (nav.getBattery) {
       nav.getBattery().then((battery: any) => {
+        batteryObj = battery;
         const updateBattery = () => {
           setBatteryState({
             supported: true,
@@ -31,20 +35,23 @@ export function useBattery(): BatteryState {
             dischargingTime: battery.dischargingTime,
           });
         };
+        updateBatteryFn = updateBattery;
 
         updateBattery();
 
         battery.addEventListener('levelchange', updateBattery);
         battery.addEventListener('chargingchange', updateBattery);
-
-        return () => {
-          battery.removeEventListener('levelchange', updateBattery);
-          battery.removeEventListener('chargingchange', updateBattery);
-        };
       }).catch(() => {
         setBatteryState(prev => ({ ...prev, supported: false }));
       });
     }
+
+    return () => {
+      if (batteryObj && updateBatteryFn) {
+        batteryObj.removeEventListener('levelchange', updateBatteryFn);
+        batteryObj.removeEventListener('chargingchange', updateBatteryFn);
+      }
+    };
   }, []);
 
   return batteryState;

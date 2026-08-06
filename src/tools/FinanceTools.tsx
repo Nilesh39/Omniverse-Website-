@@ -56,7 +56,9 @@ export const EmiCalculatorTool: React.FC = () => {
   const monthlyRate = rate / 12 / 100;
   const totalMonths = years * 12;
 
-  const emi = (principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+  const emi = monthlyRate === 0
+    ? (principal / totalMonths)
+    : (principal * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)) / (Math.pow(1 + monthlyRate, totalMonths) - 1);
   const totalPayment = emi * totalMonths;
   const totalInterest = totalPayment - principal;
 
@@ -95,7 +97,9 @@ export const SipCalculatorTool: React.FC = () => {
   const i = annualRate / 12 / 100;
   const n = years * 12;
   const totalInvestment = monthlyInvest * n;
-  const totalValue = monthlyInvest * ((Math.pow(1 + i, n) - 1) / i) * (1 + i);
+  const totalValue = i === 0
+    ? totalInvestment
+    : monthlyInvest * ((Math.pow(1 + i, n) - 1) / i) * (1 + i);
   const estimatedReturns = totalValue - totalInvestment;
 
   return (

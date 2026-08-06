@@ -2,18 +2,24 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Copy, Download, Check, RefreshCw, Code, Database, Link, Minimize2, Calendar, FileText, CheckCircle2, AlertCircle, Eye, ExternalLink, HelpCircle, Sliders } from 'lucide-react';
 import { copyToClipboard, downloadFile } from '../lib/utils';
 
-// Helper: safe UTF-8 base64url decoding
 function decodeBase64Utf8(str: string): string {
   try {
     const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
-    const binary = atob(base64);
+    const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
+    const binary = atob(padded);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) {
       bytes[i] = binary.charCodeAt(i);
     }
     return new TextDecoder('utf-8').decode(bytes);
   } catch (e) {
-    return atob(str);
+    try {
+      const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(base64.length + (4 - (base64.length % 4)) % 4, '=');
+      return atob(padded);
+    } catch (err) {
+      return '';
+    }
   }
 }
 
