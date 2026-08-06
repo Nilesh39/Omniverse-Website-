@@ -1442,70 +1442,113 @@ export const RubiksCubeTool: React.FC = () => {
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
-            className="w-64 h-64 glass-panel border border-white/10 rounded-3xl flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden perspective-1000 relative"
+            className="w-64 h-64 glass-panel border border-white/10 rounded-3xl flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden relative"
+            style={{ perspective: '800px' }}
           >
+            {/* Realistic 3D Floating Drop Shadow */}
+            <div className="absolute bottom-6 w-28 h-3.5 bg-black/75 rounded-full blur-lg pointer-events-none animate-pulse" />
+
             {/* 3D Cube container */}
             <div
-              className="w-32 h-32 relative transform-style-3d transition-transform duration-100"
-              style={{ transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)` }}
+              className="w-32 h-32 relative transition-transform duration-100"
+              style={{
+                transformStyle: 'preserve-3d',
+                transform: `rotateX(${rotation.x}deg) rotateY(${rotation.y}deg)`
+              }}
             >
               {/* Up Face */}
               <div
-                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
-                style={{ transform: 'rotateX(90deg) translateZ(64px)' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
+                style={{ transform: 'rotateX(90deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
               >
                 {cube.U.map((c, i) => (
-                  <div key={`u-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                  <div
+                    key={`u-${i}`}
+                    className="w-full h-full rounded-md border border-black/45 relative overflow-hidden shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.2)]"
+                    style={{ backgroundColor: colorMap[c] }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/35 pointer-events-none" />
+                  </div>
                 ))}
               </div>
 
               {/* Front Face */}
               <div
-                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
-                style={{ transform: 'rotateY(0deg) translateZ(64px)' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
+                style={{ transform: 'rotateY(0deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
               >
                 {cube.F.map((c, i) => (
-                  <div key={`f-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                  <div
+                    key={`f-${i}`}
+                    className="w-full h-full rounded-md border border-black/45 relative overflow-hidden shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.2)]"
+                    style={{ backgroundColor: colorMap[c] }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/35 pointer-events-none" />
+                  </div>
                 ))}
               </div>
 
               {/* Right Face */}
               <div
-                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
-                style={{ transform: 'rotateY(90deg) translateZ(64px)' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
+                style={{ transform: 'rotateY(90deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
               >
                 {cube.R.map((c, i) => (
-                  <div key={`r-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                  <div
+                    key={`r-${i}`}
+                    className="w-full h-full rounded-md border border-black/45 relative overflow-hidden shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.2)]"
+                    style={{ backgroundColor: colorMap[c] }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/35 pointer-events-none" />
+                  </div>
                 ))}
               </div>
 
               {/* Left Face */}
               <div
-                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
-                style={{ transform: 'rotateY(-90deg) translateZ(64px)' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
+                style={{ transform: 'rotateY(-90deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
               >
                 {cube.L.map((c, i) => (
-                  <div key={`l-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                  <div
+                    key={`l-${i}`}
+                    className="w-full h-full rounded-md border border-black/45 relative overflow-hidden shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.2)]"
+                    style={{ backgroundColor: colorMap[c] }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/35 pointer-events-none" />
+                  </div>
                 ))}
               </div>
 
               {/* Back Face */}
               <div
-                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
-                style={{ transform: 'rotateY(180deg) translateZ(64px)' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
+                style={{ transform: 'rotateY(180deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
               >
                 {cube.B.map((c, i) => (
-                  <div key={`b-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                  <div
+                    key={`b-${i}`}
+                    className="w-full h-full rounded-md border border-black/45 relative overflow-hidden shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.2)]"
+                    style={{ backgroundColor: colorMap[c] }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/35 pointer-events-none" />
+                  </div>
                 ))}
               </div>
 
               {/* Down Face */}
               <div
-                className="absolute w-32 h-32 border border-slate-900 grid grid-cols-3 gap-0.5"
-                style={{ transform: 'rotateX(-90deg) translateZ(64px)' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
+                style={{ transform: 'rotateX(-90deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
               >
                 {cube.D.map((c, i) => (
-                  <div key={`d-${i}`} className="w-full h-full rounded" style={{ backgroundColor: colorMap[c] }} />
+                  <div
+                    key={`d-${i}`}
+                    className="w-full h-full rounded-md border border-black/45 relative overflow-hidden shadow-[inset_0_1.5px_3px_rgba(255,255,255,0.2)]"
+                    style={{ backgroundColor: colorMap[c] }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-tr from-black/20 via-transparent to-white/35 pointer-events-none" />
+                  </div>
                 ))}
               </div>
             </div>
