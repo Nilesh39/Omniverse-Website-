@@ -1197,10 +1197,13 @@ export const RubiksCubeTool: React.FC = () => {
   const [isRotating, setIsRotating] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
-  // Solver states
+  // Solver & Autoplay states
   const [scrambleMoves, setScrambleMoves] = useState<string[]>([]);
   const [solutionSteps, setSolutionSteps] = useState<string[]>([]);
   const [currentStepIdx, setCurrentStepIdx] = useState(-1);
+  const [isAutoplay, setIsAutoplay] = useState(false);
+  const [autoplaySpeed, setAutoplaySpeed] = useState<number>(1800); // 1.8s
+  const [showNotationGuide, setShowNotationGuide] = useState(false);
   const [statusMsg, setStatusMsg] = useState('Scramble the cube or click face rotation triggers to play.');
 
   // Color Swatches Mappings
@@ -1229,6 +1232,25 @@ export const RubiksCubeTool: React.FC = () => {
     arr[1], arr[4], arr[7],
     arr[0], arr[3], arr[6]
   ];
+
+  // Plain descriptions mapping for moves
+  const getMoveDescription = (move: string): string => {
+    switch (move) {
+      case 'U': return "Rotate the Top (Up) layer Clockwise (rotate top row towards Left)";
+      case "U'": return "Rotate the Top (Up) layer Counter-Clockwise (rotate top row towards Right)";
+      case 'D': return "Rotate the Bottom (Down) layer Clockwise (rotate bottom row towards Right)";
+      case "D'": return "Rotate the Bottom (Down) layer Counter-Clockwise (rotate bottom row towards Left)";
+      case 'R': return "Rotate the Right vertical column Clockwise (rotate Right column Upward)";
+      case "R'": return "Rotate the Right vertical column Counter-Clockwise (rotate Right column Downward)";
+      case 'L': return "Rotate the Left vertical column Clockwise (rotate Left column Downward)";
+      case "L'": return "Rotate the Left vertical column Counter-Clockwise (rotate Left column Upward)";
+      case 'F': return "Rotate the Front face Clockwise (turn Front layer to the Right)";
+      case "F'": return "Rotate the Front face Counter-Clockwise (turn Front layer to the Left)";
+      case 'B': return "Rotate the Back face Clockwise (turn Back layer to the Left)";
+      case "B'": return "Rotate the Back face Counter-Clockwise (turn Back layer to the Right)";
+      default: return "Execute rotation move: " + move;
+    }
+  };
 
   // Rotate layer functions
   const performMove = (move: string) => {
@@ -1335,9 +1357,10 @@ export const RubiksCubeTool: React.FC = () => {
 
   // Scramble cube with 15 random moves
   const handleScramble = () => {
+    setIsAutoplay(false);
     const moves = ['U', "U'", 'D', "D'", 'R', "R'", 'L', "L'", 'F', "F'", 'B', "B'"];
     const sequence: string[] = [];
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 12; i++) {
       const randMove = moves[Math.floor(Math.random() * moves.length)];
       sequence.push(randMove);
     }
@@ -1350,7 +1373,7 @@ export const RubiksCubeTool: React.FC = () => {
     const reversed = [...sequence].reverse().map(m => getOppositeMove(m));
     setSolutionSteps(reversed);
     setCurrentStepIdx(-1);
-    setStatusMsg('Cube scrambled successfully! Click "Solve Next Step" to begin solver guidance.');
+    setStatusMsg('Cube scrambled! Follow the glowing face or use the Autoplay guide.');
   };
 
   const handleNextSolveStep = () => {
@@ -1361,11 +1384,13 @@ export const RubiksCubeTool: React.FC = () => {
       setCurrentStepIdx(nextIdx);
       setStatusMsg(`Step ${nextIdx + 1}/${solutionSteps.length}: Execute ${move}`);
     } else {
+      setIsAutoplay(false);
       setStatusMsg('Cube is fully solved! Great job.');
     }
   };
 
   const handlePrevSolveStep = () => {
+    setIsAutoplay(false);
     if (currentStepIdx >= 0) {
       const move = solutionSteps[currentStepIdx];
       const inverse = getOppositeMove(move);
@@ -1374,6 +1399,19 @@ export const RubiksCubeTool: React.FC = () => {
       setStatusMsg(currentStepIdx > 0 ? `Went back. Next step: ${solutionSteps[currentStepIdx]}` : 'Ready to start solving.');
     }
   };
+
+  // Autoplay handler
+  useEffect(() => {
+    let timer: any = null;
+    if (isAutoplay && currentStepIdx < solutionSteps.length - 1) {
+      timer = setTimeout(() => {
+        handleNextSolveStep();
+      }, autoplaySpeed);
+    } else if (currentStepIdx >= solutionSteps.length - 1) {
+      setIsAutoplay(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isAutoplay, currentStepIdx, solutionSteps, autoplaySpeed]);
 
   const handleStickerClick = (face: keyof CubeState, idx: number) => {
     setCube((prev) => {
@@ -1385,6 +1423,7 @@ export const RubiksCubeTool: React.FC = () => {
   };
 
   const handleReset = () => {
+    setIsAutoplay(false);
     setCube({
       U: Array(9).fill('W'),
       D: Array(9).fill('Y'),
@@ -1430,12 +1469,49 @@ export const RubiksCubeTool: React.FC = () => {
 
   const isInvalid = Object.values(counts).some(cnt => cnt !== 9);
 
+  // Identify next face to turn for visual glow guide
+  const nextMove = currentStepIdx < solutionSteps.length - 1 ? solutionSteps[currentStepIdx + 1] : null;
+  const nextFace = nextMove ? nextMove[0] : null;
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
+      {/* Visual Collapsible Notation Guide */}
+      <div className="glass-panel border border-white/10 rounded-3xl overflow-hidden">
+        <button
+          onClick={() => setShowNotationGuide(!showNotationGuide)}
+          className="w-full px-5 py-3.5 flex items-center justify-between font-bold text-xs text-slate-300 hover:bg-white/5 transition-colors"
+        >
+          <span className="flex items-center gap-2">
+            📖 How to Read Rubik's Cube Notation & Solve
+          </span>
+          <span className="text-[10px] text-accent uppercase tracking-wider">{showNotationGuide ? 'Hide Guide' : 'Show Guide'}</span>
+        </button>
+
+        {showNotationGuide && (
+          <div className="p-5 border-t border-white/10 bg-black/40 text-xs text-slate-300 space-y-3 leading-relaxed">
+            <p>Standard Rubik's cube notation uses single letters to represent the 6 faces. When a move is shown, turn that face 90 degrees:</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 font-mono text-[11px] mt-2">
+              <div className="p-2.5 glass-panel rounded-xl border border-white/5"><span className="text-accent font-bold">U (Up)</span>: Rotate top layer to the left.</div>
+              <div className="p-2.5 glass-panel rounded-xl border border-white/5"><span className="text-accent font-bold">D (Down)</span>: Rotate bottom layer to the right.</div>
+              <div className="p-2.5 glass-panel rounded-xl border border-white/5"><span className="text-accent font-bold">R (Right)</span>: Rotate right column upwards.</div>
+              <div className="p-2.5 glass-panel rounded-xl border border-white/5"><span className="text-accent font-bold">L (Left)</span>: Rotate left column downwards.</div>
+              <div className="p-2.5 glass-panel rounded-xl border border-white/5"><span className="text-accent font-bold">F (Front)</span>: Rotate front layer to the right.</div>
+              <div className="p-2.5 glass-panel rounded-xl border border-white/5"><span className="text-accent font-bold">B (Back)</span>: Rotate back layer to the left.</div>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2 bg-accent/5 p-2 rounded-xl border border-accent/15">
+              💡 **What is the Prime (') symbol?** A prime symbol (like <strong className="text-accent">R'</strong>) means rotate that face <strong>Counter-Clockwise (opposite direction)</strong>. Turn the right column downwards instead of upwards!
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Left Side: 3D Render Window */}
+        {/* Left Side: 3D Render Window with dynamic face glows */}
         <div className="md:col-span-1 flex flex-col items-center space-y-4">
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">3D Isometric View (Drag to rotate)</span>
+          <div className="text-center">
+            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block">3D Interactive Preview</span>
+            <span className="text-[9px] text-slate-500 block mt-0.5">Drag to rotate • Glowing face indicates next move</span>
+          </div>
           
           <div
             onMouseDown={handleMouseDown}
@@ -1445,7 +1521,7 @@ export const RubiksCubeTool: React.FC = () => {
             className="w-64 h-64 glass-panel border border-white/10 rounded-3xl flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden relative"
             style={{ perspective: '800px' }}
           >
-            {/* Realistic 3D Floating Drop Shadow */}
+            {/* Soft Shadow */}
             <div className="absolute bottom-6 w-28 h-3.5 bg-black/75 rounded-full blur-lg pointer-events-none animate-pulse" />
 
             {/* 3D Cube container */}
@@ -1458,8 +1534,13 @@ export const RubiksCubeTool: React.FC = () => {
             >
               {/* Up Face */}
               <div
-                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
-                style={{ transform: 'rotateX(90deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border transition-all duration-300"
+                style={{
+                  transform: 'rotateX(90deg) translateZ(64px)',
+                  backfaceVisibility: 'hidden',
+                  border: nextFace === 'U' ? '3px solid #06b6d4' : '1px solid black',
+                  boxShadow: nextFace === 'U' ? '0 0 20px #06b6d4, inset 0 0 10px #06b6d4' : ''
+                }}
               >
                 {cube.U.map((c, i) => (
                   <div
@@ -1474,8 +1555,13 @@ export const RubiksCubeTool: React.FC = () => {
 
               {/* Front Face */}
               <div
-                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
-                style={{ transform: 'rotateY(0deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border transition-all duration-300"
+                style={{
+                  transform: 'rotateY(0deg) translateZ(64px)',
+                  backfaceVisibility: 'hidden',
+                  border: nextFace === 'F' ? '3px solid #06b6d4' : '1px solid black',
+                  boxShadow: nextFace === 'F' ? '0 0 20px #06b6d4, inset 0 0 10px #06b6d4' : ''
+                }}
               >
                 {cube.F.map((c, i) => (
                   <div
@@ -1490,8 +1576,13 @@ export const RubiksCubeTool: React.FC = () => {
 
               {/* Right Face */}
               <div
-                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
-                style={{ transform: 'rotateY(90deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border transition-all duration-300"
+                style={{
+                  transform: 'rotateY(90deg) translateZ(64px)',
+                  backfaceVisibility: 'hidden',
+                  border: nextFace === 'R' ? '3px solid #06b6d4' : '1px solid black',
+                  boxShadow: nextFace === 'R' ? '0 0 20px #06b6d4, inset 0 0 10px #06b6d4' : ''
+                }}
               >
                 {cube.R.map((c, i) => (
                   <div
@@ -1506,8 +1597,13 @@ export const RubiksCubeTool: React.FC = () => {
 
               {/* Left Face */}
               <div
-                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
-                style={{ transform: 'rotateY(-90deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border transition-all duration-300"
+                style={{
+                  transform: 'rotateY(-90deg) translateZ(64px)',
+                  backfaceVisibility: 'hidden',
+                  border: nextFace === 'L' ? '3px solid #06b6d4' : '1px solid black',
+                  boxShadow: nextFace === 'L' ? '0 0 20px #06b6d4, inset 0 0 10px #06b6d4' : ''
+                }}
               >
                 {cube.L.map((c, i) => (
                   <div
@@ -1522,8 +1618,13 @@ export const RubiksCubeTool: React.FC = () => {
 
               {/* Back Face */}
               <div
-                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
-                style={{ transform: 'rotateY(180deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border transition-all duration-300"
+                style={{
+                  transform: 'rotateY(180deg) translateZ(64px)',
+                  backfaceVisibility: 'hidden',
+                  border: nextFace === 'B' ? '3px solid #06b6d4' : '1px solid black',
+                  boxShadow: nextFace === 'B' ? '0 0 20px #06b6d4, inset 0 0 10px #06b6d4' : ''
+                }}
               >
                 {cube.B.map((c, i) => (
                   <div
@@ -1538,8 +1639,13 @@ export const RubiksCubeTool: React.FC = () => {
 
               {/* Down Face */}
               <div
-                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border border-black shadow-2xl"
-                style={{ transform: 'rotateX(-90deg) translateZ(64px)', backfaceVisibility: 'hidden' }}
+                className="absolute w-32 h-32 bg-slate-950 p-1.5 grid grid-cols-3 gap-1 rounded-2xl border transition-all duration-300"
+                style={{
+                  transform: 'rotateX(-90deg) translateZ(64px)',
+                  backfaceVisibility: 'hidden',
+                  border: nextFace === 'D' ? '3px solid #06b6d4' : '1px solid black',
+                  boxShadow: nextFace === 'D' ? '0 0 20px #06b6d4, inset 0 0 10px #06b6d4' : ''
+                }}
               >
                 {cube.D.map((c, i) => (
                   <div
@@ -1555,16 +1661,16 @@ export const RubiksCubeTool: React.FC = () => {
           </div>
 
           <div className="flex gap-2 w-full">
-            <button onClick={handleScramble} className="flex-1 py-2 text-xs font-bold rounded-xl bg-accent text-slate-950 shadow-md">
-              Scramble (15 Moves)
+            <button onClick={handleScramble} className="flex-1 py-2.5 text-xs font-bold rounded-xl bg-accent text-slate-950 shadow-md">
+              Scramble Cube
             </button>
-            <button onClick={handleReset} className="px-4 py-2 text-xs font-bold rounded-xl bg-white/5 border border-white/10 text-slate-300">
+            <button onClick={handleReset} className="px-4 py-2.5 text-xs font-bold rounded-xl bg-white/5 border border-white/10 text-slate-300">
               Reset
             </button>
           </div>
         </div>
 
-        {/* Center: Unfolded 2D Net Editor */}
+        {/* Center/Right: Unfolded 2D Net Editor & Interactive color palette */}
         <div className="md:col-span-2 space-y-4">
           <div className="flex justify-between items-center px-1">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Unfolded Flat net Editor</span>
@@ -1580,42 +1686,60 @@ export const RubiksCubeTool: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-4 glass-panel rounded-3xl border border-white/10 flex flex-col items-center justify-center space-y-1">
+          <div className="p-4 glass-panel rounded-3xl border border-white/10 flex flex-col items-center justify-center space-y-1.5">
             {/* Row 1: U Face */}
-            <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+            <div
+              className="grid grid-cols-3 gap-0.5 border p-1 rounded-xl bg-black/40 transition-all duration-300"
+              style={{ border: nextFace === 'U' ? '2.5px solid #06b6d4' : '1px solid rgba(255,255,255,0.15)' }}
+            >
               {cube.U.map((c, idx) => (
-                <button key={`u-net-${idx}`} onClick={() => handleStickerClick('U', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                <button key={`u-net-${idx}`} onClick={() => handleStickerClick('U', idx)} className="w-6 h-6 rounded-md transition-colors" style={{ backgroundColor: colorMap[c] }} />
               ))}
             </div>
 
             {/* Row 2: L, F, R, B Adjacent Faces */}
             <div className="flex gap-2">
-              <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+              <div
+                className="grid grid-cols-3 gap-0.5 border p-1 rounded-xl bg-black/40 transition-all duration-300"
+                style={{ border: nextFace === 'L' ? '2.5px solid #06b6d4' : '1px solid rgba(255,255,255,0.15)' }}
+              >
                 {cube.L.map((c, idx) => (
-                  <button key={`l-net-${idx}`} onClick={() => handleStickerClick('L', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                  <button key={`l-net-${idx}`} onClick={() => handleStickerClick('L', idx)} className="w-6 h-6 rounded-md transition-colors" style={{ backgroundColor: colorMap[c] }} />
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+              <div
+                className="grid grid-cols-3 gap-0.5 border p-1 rounded-xl bg-black/40 transition-all duration-300"
+                style={{ border: nextFace === 'F' ? '2.5px solid #06b6d4' : '1px solid rgba(255,255,255,0.15)' }}
+              >
                 {cube.F.map((c, idx) => (
-                  <button key={`f-net-${idx}`} onClick={() => handleStickerClick('F', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                  <button key={`f-net-${idx}`} onClick={() => handleStickerClick('F', idx)} className="w-6 h-6 rounded-md transition-colors" style={{ backgroundColor: colorMap[c] }} />
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+              <div
+                className="grid grid-cols-3 gap-0.5 border p-1 rounded-xl bg-black/40 transition-all duration-300"
+                style={{ border: nextFace === 'R' ? '2.5px solid #06b6d4' : '1px solid rgba(255,255,255,0.15)' }}
+              >
                 {cube.R.map((c, idx) => (
-                  <button key={`r-net-${idx}`} onClick={() => handleStickerClick('R', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                  <button key={`r-net-${idx}`} onClick={() => handleStickerClick('R', idx)} className="w-6 h-6 rounded-md transition-colors" style={{ backgroundColor: colorMap[c] }} />
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+              <div
+                className="grid grid-cols-3 gap-0.5 border p-1 rounded-xl bg-black/40 transition-all duration-300"
+                style={{ border: nextFace === 'B' ? '2.5px solid #06b6d4' : '1px solid rgba(255,255,255,0.15)' }}
+              >
                 {cube.B.map((c, idx) => (
-                  <button key={`b-net-${idx}`} onClick={() => handleStickerClick('B', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                  <button key={`b-net-${idx}`} onClick={() => handleStickerClick('B', idx)} className="w-6 h-6 rounded-md transition-colors" style={{ backgroundColor: colorMap[c] }} />
                 ))}
               </div>
             </div>
 
             {/* Row 3: D Face */}
-            <div className="grid grid-cols-3 gap-0.5 border border-white/15 p-1 rounded-xl bg-black/40">
+            <div
+              className="grid grid-cols-3 gap-0.5 border p-1 rounded-xl bg-black/40 transition-all duration-300"
+              style={{ border: nextFace === 'D' ? '2.5px solid #06b6d4' : '1px solid rgba(255,255,255,0.15)' }}
+            >
               {cube.D.map((c, idx) => (
-                <button key={`d-net-${idx}`} onClick={() => handleStickerClick('D', idx)} className="w-6 h-6 rounded-md" style={{ backgroundColor: colorMap[c] }} />
+                <button key={`d-net-${idx}`} onClick={() => handleStickerClick('D', idx)} className="w-6 h-6 rounded-md transition-colors" style={{ backgroundColor: colorMap[c] }} />
               ))}
             </div>
           </div>
@@ -1631,18 +1755,53 @@ export const RubiksCubeTool: React.FC = () => {
         </div>
       </div>
 
+      {/* Solver Steps timeline & Autoplay panel */}
       {solutionSteps.length > 0 && (
         <div className="p-5 glass-panel rounded-3xl border border-accent/30 bg-accent/5 space-y-4">
-          <div className="flex justify-between items-center">
-            <span className="text-xs font-bold text-slate-300">Autosolver Step-by-Step Moves Player</span>
-            <span className="text-xs font-mono font-bold text-accent">Total Solution Length: {solutionSteps.length} Moves</span>
+          <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+            <div>
+              <span className="text-xs font-bold text-slate-300 block">Autosolver Step-by-Step Moves Player</span>
+              <span className="text-[10px] text-slate-400 block mt-0.5">Follow instructions to solve the cube. Glowing layers point to the next turn.</span>
+            </div>
+            
+            {/* Autoplay controllers */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase mr-1">Autoplay Speed:</span>
+              <select
+                value={autoplaySpeed}
+                onChange={(e) => setAutoplaySpeed(Number(e.target.value))}
+                className="bg-black/60 rounded-xl px-2.5 py-1.5 font-mono text-[10px] text-accent border border-white/10"
+              >
+                <option value={2800}>Slow (2.8s)</option>
+                <option value={1800}>Normal (1.8s)</option>
+                <option value={1000}>Fast (1.0s)</option>
+              </select>
+              <button
+                onClick={() => setIsAutoplay(!isAutoplay)}
+                className={`px-3 py-1.5 rounded-xl font-bold text-[10px] uppercase shadow-md transition-colors ${
+                  isAutoplay ? 'bg-rose-500 text-white' : 'bg-emerald-500 text-slate-950'
+                }`}
+              >
+                {isAutoplay ? '⏸ Pause' : '▶ Autoplay'}
+              </button>
+            </div>
           </div>
 
+          {/* Current Step Instruction Description Box */}
+          {nextMove && (
+            <div className="p-4 bg-accent/15 border border-accent/30 rounded-2xl text-center space-y-1.5 animate-pulse">
+              <span className="text-[9px] font-black uppercase text-accent tracking-wider">Next Step Instruction</span>
+              <h4 className="text-sm font-black text-slate-100 font-mono">Move: {nextMove}</h4>
+              <p className="text-xs text-emerald-400 font-bold">{getMoveDescription(nextMove)}</p>
+            </div>
+          )}
+
+          {/* Moves Timeline Track */}
           <div className="flex items-center gap-1.5 overflow-x-auto py-2">
             {solutionSteps.map((step, idx) => (
               <span
                 key={idx}
-                className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold shrink-0 border ${
+                className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold shrink-0 border transition-all ${
                   idx === currentStepIdx
                     ? 'bg-accent text-slate-950 border-accent scale-110 shadow-lg'
                     : idx < currentStepIdx
@@ -1655,6 +1814,7 @@ export const RubiksCubeTool: React.FC = () => {
             ))}
           </div>
 
+          {/* Manual steps controls */}
           <div className="flex gap-2">
             <button
               onClick={handlePrevSolveStep}
@@ -1674,6 +1834,7 @@ export const RubiksCubeTool: React.FC = () => {
         </div>
       )}
 
+      {/* Manual layer rotation move triggers */}
       <div className="p-4 glass-panel rounded-3xl border border-white/10 space-y-3">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Manual Layer Rotations</span>
         <div className="grid grid-cols-6 gap-2">
