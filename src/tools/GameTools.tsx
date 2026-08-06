@@ -302,12 +302,67 @@ export const TicTacToeTool: React.FC = () => {
   const [winner, setWinner] = useState<string | 'Draw' | null>(null);
   const [winningLine, setWinningLine] = useState<number[] | null>(null);
 
+  // Persistent session score board
+  const [scores, setScores] = useState({ X: 0, O: 0, draws: 0 });
+
   // Check lines combinations
   const lines = [
     [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
     [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
     [0, 4, 8], [2, 4, 6]             // Diagonals
   ];
+
+  // Client-side Web Audio API Sound Synthesizer
+  const playSound = (type: 'click' | 'win' | 'lose' | 'tie') => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      const now = ctx.currentTime;
+      
+      if (type === 'click') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(550, now);
+        osc.frequency.exponentialRampToValueAtTime(120, now + 0.08);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+        osc.start(now);
+        osc.stop(now + 0.08);
+      } else if (type === 'win') {
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(261.63, now); // C4
+        osc.frequency.setValueAtTime(329.63, now + 0.08); // E4
+        osc.frequency.setValueAtTime(392.00, now + 0.16); // G4
+        osc.frequency.setValueAtTime(523.25, now + 0.24); // C5
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.55);
+        osc.start(now);
+        osc.stop(now + 0.55);
+      } else if (type === 'lose') {
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(170, now);
+        osc.frequency.linearRampToValueAtTime(70, now + 0.45);
+        gain.gain.setValueAtTime(0.14, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.45);
+        osc.start(now);
+        osc.stop(now + 0.45);
+      } else if (type === 'tie') {
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(330, now);
+        osc.frequency.setValueAtTime(270, now + 0.12);
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.26);
+        osc.start(now);
+        osc.stop(now + 0.26);
+      }
+    } catch (e) {}
+  };
 
   // Evaluate board status
   const checkWinner = (currentBoard: string[]): { winner: string | null; line: number[] | null } => {
@@ -357,9 +412,6 @@ export const TicTacToeTool: React.FC = () => {
 
   // Get AI choice move
   const getAiMove = (currentBoard: string[]): number => {
-    // 1. Easy mode: 80% Random, 20% Minimax
-    // 2. Medium mode: 50% Random, 50% Minimax
-    // 3. Unbeatable mode: 100% Minimax
     const rand = Math.random();
     const isEasyPlay = aiDifficulty === 'easy' && rand > 0.2;
     const isMediumPlay = aiDifficulty === 'medium' && rand > 0.5;
@@ -390,6 +442,7 @@ export const TicTacToeTool: React.FC = () => {
   // Play handler
   const handleCellClick = (idx: number) => {
     if (board[idx] !== '' || winner) return;
+    playSound('click');
 
     const nextBoard = [...board];
     nextBoard[idx] = 'X';
@@ -399,35 +452,48 @@ export const TicTacToeTool: React.FC = () => {
     if (checkRes.winner) {
       setWinner(checkRes.winner);
       setWinningLine(checkRes.line);
-      if (checkRes.winner === 'X') triggerConfetti();
+      if (checkRes.winner === 'X') {
+        playSound('win');
+        triggerConfetti();
+        setScores(prev => ({ ...prev, X: prev.X + 1 }));
+      } else {
+        playSound('tie');
+        setScores(prev => ({ ...prev, draws: prev.draws + 1 }));
+      }
       return;
     }
 
-    if (gameMode === 'pvp') {
-      setXIsNext(false);
-    } else {
-      // Trigger AI turn
-      setXIsNext(false);
-      setTimeout(() => {
-        const aiIndex = getAiMove(nextBoard);
-        if (aiIndex !== -1) {
-          nextBoard[aiIndex] = 'O';
-          setBoard(nextBoard);
-          const aiCheck = checkWinner(nextBoard);
-          if (aiCheck.winner) {
-            setWinner(aiCheck.winner);
-            setWinningLine(aiCheck.line);
+    // Trigger AI turn
+    setXIsNext(false);
+    setTimeout(() => {
+      const aiIndex = getAiMove(nextBoard);
+      if (aiIndex !== -1) {
+        nextBoard[aiIndex] = 'O';
+        setBoard(nextBoard);
+        
+        const aiCheck = checkWinner(nextBoard);
+        if (aiCheck.winner) {
+          setWinner(aiCheck.winner);
+          setWinningLine(aiCheck.line);
+          if (aiCheck.winner === 'O') {
+            playSound('lose');
+            setScores(prev => ({ ...prev, O: prev.O + 1 }));
           } else {
-            setXIsNext(true);
+            playSound('tie');
+            setScores(prev => ({ ...prev, draws: prev.draws + 1 }));
           }
+        } else {
+          setXIsNext(true);
         }
-      }, 400);
-    }
+      }
+    }, 350);
   };
 
   // PvP player two move
   const handlePvPClick = (idx: number) => {
     if (board[idx] !== '' || winner) return;
+    playSound('click');
+
     const nextBoard = [...board];
     nextBoard[idx] = xIsNext ? 'X' : 'O';
     setBoard(nextBoard);
@@ -436,7 +502,15 @@ export const TicTacToeTool: React.FC = () => {
     if (checkRes.winner) {
       setWinner(checkRes.winner);
       setWinningLine(checkRes.line);
-      triggerConfetti();
+      if (checkRes.winner === 'Draw') {
+        playSound('tie');
+        setScores(prev => ({ ...prev, draws: prev.draws + 1 }));
+      } else {
+        playSound('win');
+        triggerConfetti();
+        if (checkRes.winner === 'X') setScores(prev => ({ ...prev, X: prev.X + 1 }));
+        else setScores(prev => ({ ...prev, O: prev.O + 1 }));
+      }
     } else {
       setXIsNext(!xIsNext);
     }
@@ -444,9 +518,9 @@ export const TicTacToeTool: React.FC = () => {
 
   const triggerConfetti = () => {
     confetti({
-      particleCount: 80,
-      spread: 60,
-      origin: { y: 0.8 }
+      particleCount: 100,
+      spread: 75,
+      origin: { y: 0.75 }
     });
   };
 
@@ -457,8 +531,29 @@ export const TicTacToeTool: React.FC = () => {
     setWinningLine(null);
   };
 
+  const handleResetScores = () => {
+    setScores({ X: 0, O: 0, draws: 0 });
+    handleReset();
+  };
+
   return (
     <div className="space-y-6 max-w-sm mx-auto">
+      {/* Session Scores Header Panel */}
+      <div className="grid grid-cols-3 gap-2.5 text-center font-mono select-none">
+        <div className="p-3.5 glass-panel rounded-2xl border border-cyan-500/10">
+          <span className="text-[9px] text-cyan-400 font-bold block uppercase tracking-wider">Player X</span>
+          <h3 className="text-2xl font-black text-cyan-400 mt-0.5">{scores.X}</h3>
+        </div>
+        <div className="p-3.5 glass-panel rounded-2xl border border-white/10">
+          <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Draws</span>
+          <h3 className="text-2xl font-black text-slate-200 mt-0.5">{scores.draws}</h3>
+        </div>
+        <div className="p-3.5 glass-panel rounded-2xl border border-rose-500/10">
+          <span className="text-[9px] text-rose-400 font-bold block uppercase tracking-wider">{gameMode === 'ai' ? 'CPU O' : 'Player O'}</span>
+          <h3 className="text-2xl font-black text-rose-400 mt-0.5">{scores.O}</h3>
+        </div>
+      </div>
+
       {/* Game Settings Mode Select */}
       <div className="flex flex-col gap-3 p-4 glass-panel rounded-3xl border border-white/10">
         <div className="flex items-center justify-between text-xs font-bold text-slate-300">
@@ -466,19 +561,19 @@ export const TicTacToeTool: React.FC = () => {
           <div className="flex gap-1.5">
             <button
               onClick={() => { setGameMode('ai'); handleReset(); }}
-              className={`px-3 py-1 rounded-xl flex items-center gap-1 transition-all ${
-                gameMode === 'ai' ? 'bg-accent text-slate-950' : 'glass-panel text-slate-300 hover:bg-white/10'
+              className={`px-3 py-1.5 rounded-xl flex items-center gap-1 transition-all ${
+                gameMode === 'ai' ? 'bg-accent text-slate-950 font-bold shadow-md' : 'glass-panel text-slate-300 hover:bg-white/10'
               }`}
             >
-              <Cpu className="w-3 h-3" /> Vs Computer
+              <Cpu className="w-3.5 h-3.5" /> Vs Computer
             </button>
             <button
               onClick={() => { setGameMode('pvp'); handleReset(); }}
-              className={`px-3 py-1 rounded-xl flex items-center gap-1 transition-all ${
-                gameMode === 'pvp' ? 'bg-accent text-slate-950' : 'glass-panel text-slate-300 hover:bg-white/10'
+              className={`px-3 py-1.5 rounded-xl flex items-center gap-1 transition-all ${
+                gameMode === 'pvp' ? 'bg-accent text-slate-950 font-bold shadow-md' : 'glass-panel text-slate-300 hover:bg-white/10'
               }`}
             >
-              <User className="w-3 h-3" /> Vs Friend
+              <User className="w-3.5 h-3.5" /> Vs Friend
             </button>
           </div>
         </div>
@@ -491,8 +586,8 @@ export const TicTacToeTool: React.FC = () => {
                 <button
                   key={diff}
                   onClick={() => setAiDifficulty(diff)}
-                  className={`px-2 py-0.5 rounded-lg capitalize text-[10px] ${
-                    aiDifficulty === diff ? 'bg-accent/25 border border-accent/40 text-accent font-black' : 'text-slate-400'
+                  className={`px-2.5 py-1 rounded-xl capitalize text-[10px] transition-all ${
+                    aiDifficulty === diff ? 'bg-accent/25 border border-accent/40 text-accent font-black' : 'text-slate-400 hover:text-slate-200'
                   }`}
                 >
                   {diff}
@@ -504,22 +599,30 @@ export const TicTacToeTool: React.FC = () => {
       </div>
 
       {/* Dashboard player status */}
-      <div className="p-3 text-center glass-panel rounded-2xl border border-white/5 text-xs text-slate-300 font-bold">
+      <div className="p-3 text-center glass-panel rounded-2xl border border-white/5 text-xs font-bold transition-all">
         {winner ? (
           winner === 'Draw' ? (
-            <span className="text-amber-400">🤝 Match Tied! Draw Game.</span>
+            <span className="text-amber-400 animate-pulse">🤝 Match Tied! Draw Game.</span>
           ) : (
-            <span className="text-emerald-400">🎉 Winner: Player {winner}!</span>
+            <span className={winner === 'X' ? 'text-cyan-400 animate-bounce block' : 'text-rose-400 animate-bounce block'}>
+              🎉 Winner: Player {winner}!
+            </span>
           )
         ) : gameMode === 'ai' ? (
-          xIsNext ? 'Your Turn (X)' : 'Computer is thinking...'
+          xIsNext ? (
+            <span className="text-cyan-400 animate-pulse">Your Turn (X)</span>
+          ) : (
+            <span className="text-rose-400 animate-pulse">Computer is thinking...</span>
+          )
         ) : (
-          `Player Turn: ${xIsNext ? 'X' : 'O'}`
+          <span className={xIsNext ? 'text-cyan-400' : 'text-rose-400'}>
+            Player Turn: {xIsNext ? 'X' : 'O'}
+          </span>
         )}
       </div>
 
       {/* 3x3 Tic Tac Toe Grid Board */}
-      <div className="grid grid-cols-3 grid-rows-3 gap-3 aspect-square bg-slate-950/80 p-3.5 rounded-3xl border border-white/15 relative">
+      <div className="grid grid-cols-3 grid-rows-3 gap-3 aspect-square bg-slate-950/80 p-3.5 rounded-3xl border border-white/15 relative overflow-hidden select-none">
         {board.map((cell, idx) => {
           const isWinningCell = winningLine?.includes(idx);
           return (
@@ -527,23 +630,41 @@ export const TicTacToeTool: React.FC = () => {
               key={idx}
               disabled={!!winner || (!xIsNext && gameMode === 'ai')}
               onClick={() => gameMode === 'pvp' ? handlePvPClick(idx) : handleCellClick(idx)}
-              className={`w-full h-full rounded-2xl border flex items-center justify-center text-4xl font-bold font-mono transition-all duration-300 ${
+              className={`w-full h-full rounded-2xl border flex items-center justify-center text-4xl font-bold font-mono transition-all duration-300 relative group overflow-hidden ${
                 isWinningCell
-                  ? 'bg-accent/25 border-accent text-accent scale-105 shadow-[0_0_15px_rgba(6,182,212,0.4)]'
-                  : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
+                  ? 'bg-accent/25 border-accent text-accent scale-105 shadow-[0_0_20px_rgba(6,182,212,0.5)] z-10'
+                  : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20 hover:-translate-y-0.5'
               }`}
             >
-              {cell === 'X' && <span className="text-cyan-400 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]">X</span>}
-              {cell === 'O' && <span className="text-rose-400 drop-shadow-[0_0_8px_rgba(244,63,94,0.5)]">O</span>}
+              {cell === 'X' && (
+                <span className="text-cyan-400 drop-shadow-[0_0_12px_rgba(34,211,238,0.7)] animate-scale">
+                  X
+                </span>
+              )}
+              {cell === 'O' && (
+                <span className="text-rose-400 drop-shadow-[0_0_12px_rgba(244,63,94,0.7)] animate-scale">
+                  O
+                </span>
+              )}
+              
+              {/* Glossy overlay on empty cell hover */}
+              {cell === '' && !winner && (
+                <div className="absolute inset-0 bg-gradient-to-tr from-accent/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+              )}
             </button>
           );
         })}
       </div>
 
-      {/* Restart Button */}
-      <button onClick={handleReset} className="w-full py-2.5 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-200 text-xs font-bold flex items-center justify-center gap-1">
-        <RefreshCw className="w-3.5 h-3.5" /> Restart Match
-      </button>
+      {/* Control Buttons */}
+      <div className="flex gap-2">
+        <button onClick={handleReset} className="flex-1 py-2.5 rounded-xl bg-accent text-slate-950 font-black text-xs shadow-md flex items-center justify-center gap-1.5 hover:opacity-90">
+          <RefreshCw className="w-4 h-4" /> Next Round
+        </button>
+        <button onClick={handleResetScores} className="px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-slate-400 font-bold text-xs hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20">
+          Reset Scores
+        </button>
+      </div>
     </div>
   );
 };
