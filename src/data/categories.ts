@@ -20,5 +20,6 @@ export const CATEGORIES: ToolCategory[] = [
   { id: 'converters', name: 'Unit & Data Converters', description: 'Length, Weight, Temp, Digital Storage, Transfer Speed', icon: 'ArrowLeftRight', color: 'from-teal-500 to-emerald-600' },
   { id: 'media', name: 'Image & Media', description: 'Image Compressor, Resizer, Cropper, Filters, Image to PDF', icon: 'Image', color: 'from-pink-500 to-rose-600' },
   { id: 'productivity', name: 'Productivity & Planning', description: 'Habit Tracker, Notes, Expense Planner, Flashcards, Checklist', icon: 'CheckSquare', color: 'from-sky-500 to-blue-600' },
-  { id: 'system', name: 'System & Network', description: 'Battery Diagnostics, Storage Analyzer, Network Info, Speed Test', icon: 'Cpu', color: 'from-slate-500 to-zinc-600' }
+  { id: 'system', name: 'System & Network', description: 'Battery Diagnostics, Storage Analyzer, Network Info, Speed Test', icon: 'Cpu', color: 'from-slate-500 to-zinc-600' },
+  { id: 'games', name: 'Logic Puzzles & Games', description: 'Interactive Offline Sudoku, 3D Rubik\'s Cube, 2048, Tic-Tac-Toe AI', icon: 'Gamepad2', color: 'from-amber-500 to-red-600' }
 ];

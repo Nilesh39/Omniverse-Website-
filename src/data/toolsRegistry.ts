@@ -728,7 +728,7 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     id: 'sudoku-game',
     title: 'Sudoku Game & Auto-Solver',
     description: 'Play standard Sudoku with multiple difficulty levels or auto-solve any custom board instantly.',
-    category: 'productivity',
+    category: 'games',
     icon: 'Grid',
     keywords: ['sudoku', 'game', 'puzzle', 'solve', 'numbers', 'logic'],
     popular: true,
@@ -738,11 +738,31 @@ export const TOOLS_REGISTRY: ToolDefinition[] = [
     id: 'rubiks-cube',
     title: '3D Rubik\'s Cube Solver & Game',
     description: 'Interact with a 3D isometric Rubik\'s cube, play, scramble, and use the step-by-step solver guide.',
-    category: 'productivity',
+    category: 'games',
     icon: 'Box',
     keywords: ['rubik', 'cube', 'solve', 'logic', 'game', '3d', 'puzzle'],
     popular: true,
     componentName: 'RubiksCube'
+  },
+  {
+    id: 'game-2048',
+    title: '2048 Merge Tiles Game',
+    description: 'Play the classic 2048 tile-merging game with smooth sliding animations and local high score tracking.',
+    category: 'games',
+    icon: 'Gamepad2',
+    keywords: ['2048', 'game', 'merge', 'tiles', 'numbers', 'logic'],
+    popular: true,
+    componentName: 'Game2048'
+  },
+  {
+    id: 'tic-tac-toe',
+    title: 'Tic-Tac-Toe with Minimax AI',
+    description: 'Play local 2-player Tic-Tac-Toe or challenge the unbeatable computer AI powered by the Minimax algorithm.',
+    category: 'games',
+    icon: 'CircleDot',
+    keywords: ['tic-tac-toe', 'game', 'x', 'o', 'ai', 'minimax', 'unbeatable'],
+    popular: true,
+    componentName: 'TicTacToe'
   },
 
   // SYSTEM & NETWORK

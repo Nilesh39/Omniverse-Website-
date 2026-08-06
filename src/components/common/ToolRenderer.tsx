@@ -109,6 +109,11 @@ import {
   CompassTool
 } from '../../tools/SystemTools';
 
+import {
+  Game2048Tool,
+  TicTacToeTool
+} from '../../tools/GameTools';
+
 interface ToolRendererProps {
   componentName: string;
 }
@@ -207,6 +212,10 @@ export const ToolRenderer: React.FC<ToolRendererProps> = ({ componentName }) => 
     case 'GlassCanvas': return <GlassCanvasTool />;
     case 'SudokuGame': return <SudokuGameTool />;
     case 'RubiksCube': return <RubiksCubeTool />;
+
+    // Games
+    case 'Game2048': return <Game2048Tool />;
+    case 'TicTacToe': return <TicTacToeTool />;
 
     // System
     case 'BatteryInfo': return <BatteryInfoTool />;
